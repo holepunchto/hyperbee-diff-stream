@@ -1,0 +1,19 @@
+{
+  "name": "bee-differ",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "standard && brittle test/*.js --coverage"
+  },
+  "author": "H. Degroote",
+  "license": "MIT",
+  "devDependencies": {
+    "autobase-next": "github:holepunchto/autobase-next",
+    "brittle": "^3.1.1",
+    "corestore": "^6.5.0",
+    "hyperbee": "^2.4.2",
+    "random-access-memory": "^6.1.0",
+    "standard": "^17.0.0"
+  }
+}
