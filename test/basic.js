@@ -4,11 +4,11 @@ const Hyperbee = require('hyperbee')
 const getDiffs = require('../index')
 const { create, sync } = require('./helpers')
 
-test.solo('no changes -> empty diff', async t => {
+test('no changes -> empty diff', async t => {
   const bases = await setup(t)
   const [base1] = bases
 
-  const diffs = await getDiffs(base1.bee, base1.view.bee, base1.view.bee.core.indexedLength)
+  const diffs = await getDiffs(base1.view.bee, base1.view.bee, base1.view.bee.core.indexedLength)
   t.is(diffs.length, 0)
 })
 
@@ -21,17 +21,35 @@ test('index moved ahead', async t => {
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await base1.append({ entry: ['1-3', '1-entry3'] })
 
   await confirm(...bases)
 
   const newBee = base1.view.bee.snapshot()
 
-  t.is(newBee.core.indexedLength, 4) // Sanity check
+  t.is(newBee.core.indexedLength, 3) // Sanity check
   const diffs = await getDiffs(origBee, newBee, origIndexedL)
-  console.log(diffs)
-  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2', '1-3'])
-  t.alike(diffs.map(({ right }) => right), [null, null, null])
+
+  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
+  t.alike(diffs.map(({ right }) => right), [null, null])
+})
+
+test('new forked, but no old fork nor changes to index', async t => {
+  const bases = await setup(t)
+  const base1 = bases[0]
+
+  const origBee = base1.view.bee.snapshot()
+  const origIndexedL = base1.view.bee.core.indexedLength
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+
+  const newBee = base1.view.bee.snapshot()
+
+  t.is(newBee.core.indexedLength, 0) // Sanity check
+  const diffs = await getDiffs(origBee, newBee, origIndexedL)
+
+  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
+  t.alike(diffs.map(({ right }) => right), [null, null])
 })
 
 async function confirm (base1, base2) {
@@ -97,7 +115,7 @@ async function apply (batch, simpleView, base) {
       // console.log('value for simple view:', value)
       // console.log('bee:', simpleView.bee)
       try {
-        console.log('val:', value)
+        // console.log('val:', value)
 
         // console.log('Applying message')
         await simpleView._applyMessage(...value.entry)
