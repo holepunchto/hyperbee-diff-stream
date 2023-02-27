@@ -52,6 +52,28 @@ test('new forked, but no old fork nor changes to index', async t => {
   t.alike(diffs.map(({ right }) => right), [null, null])
 })
 
+test.solo('new continued old fork, but no changes to index', async t => {
+  const bases = await setup(t)
+  const base1 = bases[0]
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  const origBee = base1.view.bee.snapshot()
+  const origIndexedL = base1.view.bee.core.indexedLength
+  t.is(origIndexedL, 0) // Sanity check
+
+  await base1.append({ entry: ['1-3', '1-entry3'] })
+  await base1.append({ entry: ['1-4', '1-entry4'] })
+
+  const newBee = base1.view.bee.snapshot()
+
+  const diffs = await getDiffs(origBee, newBee, origIndexedL)
+  t.is(newBee.feed.indexedLength, 0) // Sanity check
+
+  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-3', '1-4'])
+  t.alike(diffs.map(({ right }) => right), [null, null])
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
