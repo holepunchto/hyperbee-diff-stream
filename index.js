@@ -39,12 +39,7 @@ async function getDiffs (oldBee, newBee, oldIndexedL) {
     }
   }
 
-  // No fork for old bee (note: init indexedL is 0, but init version 1)
-  if (oldBee.version === oldIndexedL || oldIndexedL === 0) {
-    return res
-  }
-
-  throw new Error('not implemented')
+  return res
 }
 
 module.exports = getDiffs
