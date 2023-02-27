@@ -1,5 +1,3 @@
-const toArray = require('stream-to-array')
-
 function getChangedKey (diffEntry) {
   const { left, right } = diffEntry
   return left ? left.key.toString() : right.key.toString()
@@ -14,12 +12,15 @@ async function getDiffs (oldBee, newBee, oldIndexedL) {
   // Note: we need to explicitly pass the old indexed length,
   // because even on a snapshot bee the underlying core gets updated
 
-  const newApplyDiff = await toArray(
-    newBee.createDiffStream(oldIndexedL)
-  )
-  const oldToUndoDiff = await toArray(
-    oldBee.createDiffStream(oldIndexedL)
-  )
+  const newApplyDiff = []
+  for await (const entry of newBee.createDiffStream(oldIndexedL)) {
+    newApplyDiff.push(entry)
+  }
+
+  const oldToUndoDiff = []
+  for await (const entry of oldBee.createDiffStream(oldIndexedL)) {
+    oldToUndoDiff.push(entry)
+  }
 
   const newKeys = new Set(newApplyDiff.map(getChangedKey))
   const oldSeqs = new Set(oldToUndoDiff.map(getChangedSeqNr))
