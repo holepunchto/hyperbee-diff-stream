@@ -15,5 +15,8 @@
     "hyperbee": "^2.4.2",
     "random-access-memory": "^6.1.0",
     "standard": "^17.0.0"
+  },
+  "dependencies": {
+    "same-object": "^1.0.2"
   }
 }
