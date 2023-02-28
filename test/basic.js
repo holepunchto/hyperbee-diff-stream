@@ -139,6 +139,77 @@ test('new index, new fork and old fork all resolved nicely', async t => {
   t.alike(diffs.map(({ right }) => right), [null, null, null])
 })
 
+test('complex autobase linearisation with truncates', async t => {
+  const bases = await setup(t)
+  const [base1, base2] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await confirm(base1, base2)
+
+  let hasTruncated = false
+  base2.view.bee.core.on('truncate', function () { hasTruncated = true })
+  base1.view.bee.core.on('truncate', function () { hasTruncated = true })
+
+  await Promise.all([
+    base1.append({ entry: ['1-3', '1-entry3'] }),
+    base1.append({ entry: ['1-4', '1-entry4'] }),
+    base2.append({ entry: ['2-1', '2-entry1'] }),
+    base2.append({ entry: ['2-2', '2-entry2'] }),
+    base2.append({ entry: ['2-3', '2-entry3'] })
+  ])
+
+  const origBee = base1.view.bee.snapshot() // new Hyperbee(base1.view.bee.core.snapshot(), { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+  const origIndexedL = origBee.core.indexedLength
+  t.is(origIndexedL, 3) // Sanity check
+  t.is(origBee.version, 5) // Sanity check
+
+  const origBee2 = new Hyperbee(base2.view.bee.core.snapshot(), { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+  const origIndexedL2 = origBee2.core.indexedLength
+  t.is(origIndexedL2, 3) // Sanity check
+  t.is(origBee2.version, 6) // Sanity check
+
+  // console.log('orig index', origBee.feed.indexedLength, origBee.version) //, 'new:', newBee1.feed.indexedLength)
+  // console.log('orig index2', origBee2.feed.indexedLength, origBee2.version) //, 'new:', newBee2.feed.indexedLength)
+
+  // console.log('orig keys: -- core length:', origBee2.feed.length)
+  // for await (const entry of origBee2.createReadStream()) {
+  //   console.log(entry.key.toString())
+  // }
+
+  await confirm(base1, base2)
+
+  // console.log('New keys:', origBee2.version, ' core length:', origBee2.feed.length)
+  // for await (const entry of origBee2.createReadStream()) {
+  //   console.log(entry.key.toString())
+  // }
+
+  const newBee1 = base1.view.bee.snapshot()
+  const newBee2 = base2.view.bee.snapshot()
+
+  // console.log('orig version', origBee.version, 'new:', newBee1.version)
+  // console.log('orig version2', origBee2.version, 'new:', newBee2.version)
+  // console.log('orig index', origBee.feed.indexedLength, 'new:', newBee1.feed.indexedLength)
+  // console.log('orig version2', origBee2.feed.indexedLength, 'new:', newBee2.feed.indexedLength)
+
+  const diffsBee1 = await getDiffs(origBee, newBee1, origIndexedL)
+  const diffsBee2 = await getDiffs(origBee2, newBee2, origIndexedL2)
+  // console.log(diffsBee2.map(( { left } ) => left.key.toString()))
+
+  t.is(newBee1.feed.indexedLength, 8) // Sanity check
+  t.is(newBee1.version, 8) // Sanity check
+  t.alike(diffsBee1.map(({ left }) => left.key.toString()), ['2-1', '2-2', '2-3'])
+  t.alike(diffsBee1.map(({ right }) => right), [null, null, null])
+
+  t.is(newBee2.feed.indexedLength, 8) // Sanity check
+  t.is(newBee2.version, 8) // Sanity check
+  t.alike(diffsBee2.map(({ left }) => left.key.toString()), ['1-3', '1-4'])
+  t.alike(diffsBee2.map(({ right }) => right), [null, null])
+
+  // Sanity check: we did indeed truncate
+  t.is(hasTruncated, true)
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
