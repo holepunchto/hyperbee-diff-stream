@@ -18,6 +18,7 @@ function shouldAddNewEntry (newEntry, oldEntries) {
 
 async function getDiffs (oldBee, newBee) {
   const oldIndexedL = oldBee.core.indexedLength
+  const oldIndexedBee = oldBee.checkout(oldIndexedL) // Same as newBee.checkout(oldIndexedL)
 
   const newApplyDiff = new Map()
   for await (const entry of newBee.createDiffStream(oldIndexedL)) {
@@ -37,7 +38,17 @@ async function getDiffs (oldBee, newBee) {
   }
 
   for (const [key, entry] of oldToUndoDiff) {
-    if (!newApplyDiff.has(key)) {
+    const valueOld = (await oldIndexedBee.get(key))
+    const valueNew = (await newBee.get(key))
+    // console.log('old', valueOld)
+    // console.log('new', valueNew)
+    // console.log(entry)
+
+    // TODO: simplify
+    const newCondition = sameObject(valueOld, valueNew) && !sameObject(entry.left, valueNew) // no change
+    const oldCondition = !newApplyDiff.has(key)
+    if (newCondition !== oldCondition) throw new Error(`yikes ${valueOld}, ${valueNew}--${newApplyDiff.get(key)}`)
+    if (newCondition) {
       // Undo, so add<->delete (left<->right)
       res.push({ seq: entry.seq, left: entry.right, right: entry.left })
     }
