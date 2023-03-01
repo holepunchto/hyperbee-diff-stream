@@ -137,6 +137,40 @@ test('new index, new fork and old fork all resolved nicely', async t => {
   t.alike(diffs.map(({ right }) => right), [null, null, null])
 })
 
+test('new index, new fork and old fork all resolved nicely (deletes)', async t => {
+  const bases = await setup(t)
+  const [base1, base2, readOnlyBase] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await confirm(base1, base2)
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await sync(...bases)
+
+  const origBee = readOnlyBase.view.bee.snapshot()
+  const origIndexedL = readOnlyBase.view.bee.core.indexedLength
+  t.is(origIndexedL, 2) // Sanity check
+  t.is(origBee.version, 3) // Sanity check
+
+  await base1.append({ delete: '1-1' })
+  await base1.append({ entry: ['1-3', '1-entry3'] })
+  await base1.append({ entry: ['1-4', '1-entry4'] })
+  await confirm(base1, base2)
+
+  // New Fork
+  await base1.append({ entry: ['1-5', '1-entry5'] })
+  await base1.append({ delete: '1-3' })
+  await sync(base1, readOnlyBase)
+
+  const newBee = readOnlyBase.view.bee.snapshot()
+
+  const diffs = await getDiffs(origBee, newBee)
+  t.is(newBee.feed.indexedLength, 6) // Sanity check
+  t.is(newBee.version, 8) // Sanity check
+
+  t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, '1-4', '1-5'])
+  t.alike(diffs.map(({ right }) => right?.key.toString()), ['1-1', undefined, undefined])
+})
+
 test('complex autobase linearisation with truncates', async t => {
   const bases = await setup(t)
   const [base1, base2] = bases
@@ -228,6 +262,10 @@ class SimpleView {
   async _applyMessage (key, value) {
     await this.bee.put(key, value, { update: false })
   }
+
+  async getMessage (key) {
+    return await this.bee.get(key, { update: false })
+  }
 }
 
 function open (linStore, base) {
@@ -244,7 +282,13 @@ async function apply (t, batch, simpleView, base) {
       await base.system.addWriter(Buffer.from(value.add, 'hex'))
     } else {
       try {
-        await simpleView._applyMessage(...value.entry)
+        if (value.delete) {
+          await simpleView.bee.del(value.delete, { update: false })
+        } else if (value.entry) {
+          await simpleView._applyMessage(...value.entry)
+        } else {
+          throw new Error('unexpected value:', value)
+        }
       } catch (e) {
         console.error(e)
         t.fail()
