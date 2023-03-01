@@ -159,42 +159,23 @@ test('complex autobase linearisation with truncates', async t => {
     base2.append({ entry: ['2-3', '2-entry3'] })
   ])
 
-  const origBee = base1.view.bee.snapshot() // new Hyperbee(base1.view.bee.core.snapshot(), { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+  const origBee = base1.view.bee.snapshot()
   const origIndexedL = origBee.core.indexedLength
   t.is(origIndexedL, 3) // Sanity check
   t.is(origBee.version, 5) // Sanity check
 
-  const origBee2 = new Hyperbee(base2.view.bee.core.snapshot(), { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+  const origBee2 = base2.view.bee.snapshot()
   const origIndexedL2 = origBee2.core.indexedLength
   t.is(origIndexedL2, 3) // Sanity check
   t.is(origBee2.version, 6) // Sanity check
 
-  // console.log('orig index', origBee.feed.indexedLength, origBee.version) //, 'new:', newBee1.feed.indexedLength)
-  // console.log('orig index2', origBee2.feed.indexedLength, origBee2.version) //, 'new:', newBee2.feed.indexedLength)
-
-  // console.log('orig keys: -- core length:', origBee2.feed.length)
-  // for await (const entry of origBee2.createReadStream()) {
-  //   console.log(entry.key.toString())
-  // }
-
   await confirm(base1, base2)
-
-  // console.log('New keys:', origBee2.version, ' core length:', origBee2.feed.length)
-  // for await (const entry of origBee2.createReadStream()) {
-  //   console.log(entry.key.toString())
-  // }
 
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  // console.log('orig version', origBee.version, 'new:', newBee1.version)
-  // console.log('orig version2', origBee2.version, 'new:', newBee2.version)
-  // console.log('orig index', origBee.feed.indexedLength, 'new:', newBee1.feed.indexedLength)
-  // console.log('orig version2', origBee2.feed.indexedLength, 'new:', newBee2.feed.indexedLength)
-
   const diffsBee1 = await getDiffs(origBee, newBee1, origIndexedL)
   const diffsBee2 = await getDiffs(origBee2, newBee2, origIndexedL2)
-  // console.log(diffsBee2.map(( { left } ) => left.key.toString()))
 
   t.is(newBee1.feed.indexedLength, 8) // Sanity check
   t.is(newBee1.version, 8) // Sanity check
