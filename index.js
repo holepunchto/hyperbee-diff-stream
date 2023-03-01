@@ -16,9 +16,8 @@ function shouldAddNewEntry (newEntry, oldEntries) {
   return !(leftEq && rightEq) // Was already processed
 }
 
-async function getDiffs (oldBee, newBee, oldIndexedL) {
-  // Note: we need to explicitly pass the old indexed length,
-  // because even on a snapshot bee the underlying core gets updated
+async function getDiffs (oldBee, newBee) {
+  const oldIndexedL = oldBee.core.indexedLength
 
   const newApplyDiff = new Map()
   for await (const entry of newBee.createDiffStream(oldIndexedL)) {
