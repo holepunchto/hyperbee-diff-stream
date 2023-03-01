@@ -5,18 +5,7 @@ function getChangedKey (diffEntry) {
   return left ? left.key.toString() : right.key.toString()
 }
 
-function shouldAddNewEntry (newEntry, oldEntries) {
-  const newKey = getChangedKey(newEntry)
-  if (!oldEntries.has(newKey)) return true
-
-  const oldEntry = oldEntries.get(newKey)
-
-  const leftEq = sameObject(oldEntry.left?.value, newEntry.left?.value)
-  const rightEq = sameObject(oldEntry.right?.value, newEntry.right?.value)
-  return !(leftEq && rightEq) // Was already processed
-}
-
-async function shouldAddNewEntryNew (newEntry, oldBee) {
+async function shouldAddNewEntry (newEntry, oldBee) {
   const key = getChangedKey(newEntry)
   const oldEntry = await oldBee.get(key)
   // The seqNr does not matter: can change on truncates while value remains same
@@ -45,11 +34,7 @@ async function getDiffs (oldBee, newBee) {
 
   const res = []
   for (const newEntry of newApplyDiff.values()) {
-    const oldCheck = shouldAddNewEntry(newEntry, oldToUndoDiff)
-    const newCheck = await shouldAddNewEntryNew(newEntry, oldBee)
-    // console.log(newEntry, 'old:', oldCheck, 'new:', newCheck)
-    if (newCheck !== oldCheck) throw new Error('new yikes')
-    if (newCheck) {
+    if (await shouldAddNewEntry(newEntry, oldBee)) {
       res.push(newEntry)
     }
   }
@@ -57,15 +42,8 @@ async function getDiffs (oldBee, newBee) {
   for (const [key, entry] of oldToUndoDiff) {
     const valueOld = (await oldIndexedBee.get(key))
     const valueNew = (await newBee.get(key))
-    // console.log('old', valueOld)
-    // console.log('new', valueNew)
-    // console.log(entry)
-
-    // TODO: simplify
-    const newCondition = sameObject(valueOld, valueNew) && !sameObject(entry.left, valueNew) // no change
-    const oldCondition = !newApplyDiff.has(key)
-    if (newCondition !== oldCondition) throw new Error(`yikes ${valueOld}, ${valueNew}--${newApplyDiff.get(key)}`)
-    if (newCondition) {
+    const shouldAdd = sameObject(valueOld, valueNew) && !sameObject(entry.left, valueNew) // no change
+    if (shouldAdd) {
       // Undo, so add<->delete (left<->right)
       res.push({ seq: entry.seq, left: entry.right, right: entry.left })
     }
