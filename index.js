@@ -24,7 +24,6 @@ async function getDiffs (oldBee, newBee) {
 
   const res = []
 
-  // const newApplyDiff = new Map()
   for await (const newEntry of newBee.createDiffStream(oldIndexedL)) {
     if (await shouldAddNewEntry(newEntry, oldBee)) {
       res.push(newEntry)
