@@ -16,6 +16,19 @@ function shouldAddNewEntry (newEntry, oldEntries) {
   return !(leftEq && rightEq) // Was already processed
 }
 
+async function shouldAddNewEntryNew (newEntry, oldBee) {
+  const key = getChangedKey(newEntry)
+  const oldEntry = await oldBee.get(key)
+  // The seqNr does not matter: can change on truncates while value remains same
+  // (so we only compare values)
+  // Note: all deletion info is also contained in .left, so no need to
+  // have a look at .right--we only care about the current state of the newEntry
+  // (not where it changed from)
+  const newChanged = !sameObject(oldEntry?.value, newEntry.left?.value)
+
+  return newChanged
+}
+
 async function getDiffs (oldBee, newBee) {
   const oldIndexedL = oldBee.core.indexedLength
   const oldIndexedBee = oldBee.checkout(oldIndexedL) // Same as newBee.checkout(oldIndexedL)
@@ -32,7 +45,11 @@ async function getDiffs (oldBee, newBee) {
 
   const res = []
   for (const newEntry of newApplyDiff.values()) {
-    if (shouldAddNewEntry(newEntry, oldToUndoDiff)) {
+    const oldCheck = shouldAddNewEntry(newEntry, oldToUndoDiff)
+    const newCheck = await shouldAddNewEntryNew(newEntry, oldBee)
+    // console.log(newEntry, 'old:', oldCheck, 'new:', newCheck)
+    if (newCheck !== oldCheck) throw new Error('new yikes')
+    if (newCheck) {
       res.push(newEntry)
     }
   }
