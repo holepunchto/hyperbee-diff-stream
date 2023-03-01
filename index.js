@@ -2,7 +2,7 @@ const sameObject = require('same-object')
 
 function getChangedKey (diffEntry) {
   const { left, right } = diffEntry
-  return left ? left.key.toString() : right.key.toString()
+  return left ? left.key : right.key
 }
 
 async function shouldAddNewEntry (newEntry, oldBee) {
