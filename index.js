@@ -22,24 +22,18 @@ async function getDiffs (oldBee, newBee) {
   const oldIndexedL = oldBee.core.indexedLength
   const oldIndexedBee = oldBee.checkout(oldIndexedL) // Same as newBee.checkout(oldIndexedL)
 
-  const newApplyDiff = new Map()
-  for await (const entry of newBee.createDiffStream(oldIndexedL)) {
-    newApplyDiff.set(getChangedKey(entry), entry)
-  }
-
-  const oldToUndoDiff = new Map()
-  for await (const entry of oldBee.createDiffStream(oldIndexedL)) {
-    oldToUndoDiff.set(getChangedKey(entry), entry)
-  }
-
   const res = []
-  for (const newEntry of newApplyDiff.values()) {
+
+  // const newApplyDiff = new Map()
+  for await (const newEntry of newBee.createDiffStream(oldIndexedL)) {
     if (await shouldAddNewEntry(newEntry, oldBee)) {
       res.push(newEntry)
     }
   }
 
-  for (const [key, entry] of oldToUndoDiff) {
+  for await (const entry of oldBee.createDiffStream(oldIndexedL)) {
+    const key = getChangedKey(entry)
+
     const valueOld = (await oldIndexedBee.get(key))
     const valueNew = (await newBee.get(key))
     const shouldAdd = sameObject(valueOld, valueNew) && !sameObject(entry.left, valueNew) // no change
