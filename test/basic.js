@@ -223,6 +223,62 @@ test('complex autobase linearisation with truncates', async t => {
   t.is(hasTruncated, true)
 })
 
+test('complex autobase linearisation with truncates and deletes', async t => {
+  const bases = await setup(t)
+  const [base1, base2] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await confirm(base1, base2)
+
+  let hasTruncated = false
+  base2.view.bee.core.on('truncate', function () { hasTruncated = true })
+  base1.view.bee.core.on('truncate', function () { hasTruncated = true })
+
+  await Promise.all([
+    base1.append({ entry: ['1-3', '1-entry3'] }),
+    base1.append({ entry: ['1-4', '1-entry4'] }),
+    base1.append({ delete: '1-1' }),
+    base2.append({ entry: ['2-1', '2-entry1'] }),
+    base2.append({ entry: ['2-2', '2-entry2'] }),
+    base1.append({ delete: '1-3' })
+  ])
+
+  const origBee = base1.view.bee.snapshot()
+  const origIndexedL = origBee.core.indexedLength
+  t.is(origIndexedL, 3) // Sanity check
+  t.is(origBee.version, 7) // Sanity check
+
+  const origBee2 = base2.view.bee.snapshot()
+  const origIndexedL2 = origBee2.core.indexedLength
+  t.is(origIndexedL2, 3) // Sanity check
+  t.is(origBee2.version, 5) // Sanity check
+
+  await confirm(base1, base2)
+
+  const newBee1 = base1.view.bee.snapshot()
+  const newBee2 = base2.view.bee.snapshot()
+
+  const diffsBee1 = await getDiffs(origBee, newBee1)
+  const diffsBee2 = await getDiffs(origBee2, newBee2)
+
+  t.is(newBee1.feed.indexedLength, 9) // Sanity check
+  t.is(newBee1.version, 9) // Sanity check
+  t.alike(diffsBee1.map(({ left }) => left.key.toString()), ['2-1', '2-2'])
+  t.alike(diffsBee1.map(({ right }) => right), [null, null])
+
+  // TODO: this test sometimes fails (non-deterministically) with
+  // indexedLength of newBee2 only 8 instead of 9
+  // console.log('bee1: ', newBee1.feed.indexedLength, 'bee2 indexedL: ', newBee2.feed.indexedLength)
+  t.is(newBee2.feed.indexedLength, 9) // Sanity check
+  t.is(newBee2.version, 9) // Sanity check
+  t.alike(diffsBee2.map(({ left }) => left?.key.toString()), [undefined, '1-4'])
+  t.alike(diffsBee2.map(({ right }) => right?.key.toString()), ['1-1', undefined]) // deletions
+
+  // Sanity check: we did indeed truncate
+  t.is(hasTruncated, true)
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
