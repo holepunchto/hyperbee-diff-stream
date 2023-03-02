@@ -8,7 +8,7 @@ test('no changes -> empty diff', async t => {
   const bases = await setup(t)
   const [base1] = bases
 
-  const diffs = await streamToArray(await getDiffs(base1.view.bee, base1.view.bee))
+  const diffs = await streamToArray(getDiffs(base1.view.bee, base1.view.bee))
   t.is(diffs.length, 0)
 })
 
@@ -26,7 +26,7 @@ test('index moved ahead', async t => {
   const newBee = base1.view.bee.snapshot()
 
   t.is(newBee.core.indexedLength, 3) // Sanity check
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
   t.alike(diffs.map(({ right }) => right), [null, null])
@@ -44,7 +44,7 @@ test('new bee forked, but no old fork nor changes to index', async t => {
   const newBee = base1.view.bee.snapshot()
 
   t.is(newBee.core.indexedLength, 0) // Sanity check
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
   t.alike(diffs.map(({ right }) => right), [null, null])
@@ -66,7 +66,7 @@ test('new continued old fork, but no changes to index', async t => {
 
   const newBee = base1.view.bee.snapshot()
 
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
   t.is(newBee.feed.indexedLength, 0) // Sanity check
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-3', '1-4'])
@@ -97,7 +97,7 @@ test('both new index and new fork--old had up to date index', async t => {
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
   t.is(newBee.feed.indexedLength, 5) // Sanity check
   t.is(newBee.version, 6) // Sanity check
 
@@ -129,7 +129,7 @@ test('new index, new fork and old fork all resolved nicely', async t => {
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
   t.is(newBee.feed.indexedLength, 5) // Sanity check
   t.is(newBee.version, 6) // Sanity check
 
@@ -163,7 +163,7 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(await getDiffs(origBee, newBee))
+  const diffs = await streamToArray(getDiffs(origBee, newBee))
   t.is(newBee.feed.indexedLength, 6) // Sanity check
   t.is(newBee.version, 8) // Sanity check
 
@@ -206,8 +206,8 @@ test('complex autobase linearisation with truncates', async t => {
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(await getDiffs(origBee, newBee1))
-  const diffsBee2 = await streamToArray(await getDiffs(origBee2, newBee2))
+  const diffsBee1 = await streamToArray(getDiffs(origBee, newBee1))
+  const diffsBee2 = await streamToArray(getDiffs(origBee2, newBee2))
 
   t.is(newBee1.feed.indexedLength, 8) // Sanity check
   t.is(newBee1.version, 8) // Sanity check
@@ -259,8 +259,8 @@ test('complex autobase linearisation with truncates and deletes', async t => {
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(await getDiffs(origBee, newBee1))
-  const diffsBee2 = await streamToArray(await getDiffs(origBee2, newBee2))
+  const diffsBee1 = await streamToArray(getDiffs(origBee, newBee1))
+  const diffsBee2 = await streamToArray(getDiffs(origBee2, newBee2))
 
   t.is(newBee1.feed.indexedLength, 9) // Sanity check
   t.is(newBee1.version, 9) // Sanity check

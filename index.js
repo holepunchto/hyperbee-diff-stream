@@ -13,7 +13,7 @@ function areEqual (diff1, diff2) {
   return b4a.equals(diff1.value, diff2.value)
 }
 
-async function getDiffs (oldBee, newBee) {
+function getDiffs (oldBee, newBee) {
   // For easier comparisons of the values
   oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
   newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
