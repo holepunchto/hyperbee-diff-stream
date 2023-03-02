@@ -7,7 +7,11 @@ function getKey (diffEntry) {
   return left ? left.key : right.key
 }
 
-const NULL_BUF = b4a.alloc(0)
+function areEqual (diff1, diff2) {
+  if (diff1 === null && diff2 === null) return true
+  if (diff1 === null || diff2 === null) return false
+  return b4a.equals(diff1.value, diff2.value)
+}
 
 async function getDiffs (oldBee, newBee) {
   // For easier comparisons of the values
@@ -39,8 +43,8 @@ async function getDiffs (oldBee, newBee) {
       const oldEntry = bufferedEntry
       const newEntry = entry
 
-      const leftEq = b4a.equals(oldEntry.right?.value || NULL_BUF, newEntry.left?.value || NULL_BUF)
-      const rightEq = b4a.equals(oldEntry.left?.value || NULL_BUF, newEntry.right?.value || NULL_BUF)
+      const leftEq = areEqual(oldEntry.right, newEntry.left)
+      const rightEq = areEqual(oldEntry.left, newEntry.right)
       if (!(leftEq && rightEq)) { // else: already processed in prev getDiffs
         outStream.push(entry)
       }
