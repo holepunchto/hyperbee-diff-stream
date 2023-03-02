@@ -17,6 +17,9 @@
     "standard": "^17.0.0"
   },
   "dependencies": {
-    "same-object": "^1.0.2"
+    "b4a": "^1.6.1",
+    "same-object": "^1.0.2",
+    "sorted-union-stream": "^3.1.0",
+    "streamx": "^2.13.2"
   }
 }
