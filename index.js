@@ -1,4 +1,3 @@
-const sameObject = require('same-object')
 const Union = require('sorted-union-stream')
 const b4a = require('b4a')
 const { Readable, Transform, pipeline } = require('streamx')
@@ -8,7 +7,13 @@ function getKey (diffEntry) {
   return left ? left.key : right.key
 }
 
+const NULL_BUF = b4a.alloc(0)
+
 async function getDiffs (oldBee, newBee) {
+  // For easier comparisons of the values
+  oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
+  newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
+
   const oldIndexedL = oldBee.core.indexedLength
 
   const origOldDiffStream = oldBee.createDiffStream(oldIndexedL)
@@ -34,9 +39,8 @@ async function getDiffs (oldBee, newBee) {
       const oldEntry = bufferedEntry
       const newEntry = entry
 
-      // TODO: binary checkouts for b4a equals
-      const leftEq = sameObject(oldEntry.right?.value, newEntry.left?.value)
-      const rightEq = sameObject(oldEntry.left?.value, newEntry.right?.value)
+      const leftEq = b4a.equals(oldEntry.right?.value || NULL_BUF, newEntry.left?.value || NULL_BUF)
+      const rightEq = b4a.equals(oldEntry.left?.value || NULL_BUF, newEntry.right?.value || NULL_BUF)
       if (!(leftEq && rightEq)) { // else: already processed in prev getDiffs
         outStream.push(entry)
       }
