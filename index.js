@@ -33,7 +33,10 @@ class BeeDiffStream extends Union {
     oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
     newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
 
-    const oldIndexedL = oldBee.core.indexedLength
+    // A normal bee doesn't have indexedLength.
+    // In this case, we fallback to the version,
+    // and the result is a normal diffStream
+    const oldIndexedL = oldBee.core.indexedLength || oldBee.version
     const oldDiffStream = oldBee.createDiffStream(oldIndexedL)
     const newDiffStream = newBee.createDiffStream(oldIndexedL)
 

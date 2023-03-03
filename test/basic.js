@@ -1,5 +1,7 @@
 const test = require('brittle')
 const Hyperbee = require('hyperbee')
+const ram = require('random-access-memory')
+const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
 const { create, sync } = require('./helpers')
@@ -277,6 +279,27 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 
   // Sanity check: we did indeed truncate
   t.is(hasTruncated, true)
+})
+
+test('works with normal hyperbee', async function (t) {
+  const bee = new Hyperbee(new Hypercore(ram))
+  await bee.put('e1', 'entry1')
+
+  const oldSnap = bee.snapshot()
+
+  await bee.put('e2', 'entry2')
+  await bee.put('e3', 'entry3')
+  await bee.del('e2')
+  await bee.del('e1')
+
+  const newSnap = bee.snapshot()
+  const diffs = await streamToArray(new BeeDiffStream(oldSnap, newSnap))
+
+  t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
+  t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
+
+  const directDiffs = await streamToArray(newSnap.createDiffStream(oldSnap.version))
+  t.alike(directDiffs, diffs)
 })
 
 async function confirm (base1, base2) {
