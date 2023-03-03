@@ -1,49 +1,46 @@
-const sameObject = require('same-object')
+const Union = require('sorted-union-stream')
+const b4a = require('b4a')
 
-function getChangedKey (diffEntry) {
+function getKey (diffEntry) {
   const { left, right } = diffEntry
-  return left ? left.key.toString() : right.key.toString()
+  return left ? left.key : right.key
 }
 
-function shouldAddNewEntry (newEntry, oldEntries) {
-  const newKey = getChangedKey(newEntry)
-  if (!oldEntries.has(newKey)) return true
-
-  const oldEntry = oldEntries.get(newKey)
-
-  const leftEq = sameObject(oldEntry.left?.value, newEntry.left?.value)
-  const rightEq = sameObject(oldEntry.right?.value, newEntry.right?.value)
-  return !(leftEq && rightEq) // Was already processed
+function areEqual (diff1, diff2) {
+  if (diff1 === null && diff2 === null) return true
+  if (diff1 === null || diff2 === null) return false
+  return b4a.equals(diff1.value, diff2.value)
 }
 
-async function getDiffs (oldBee, newBee) {
+function getDiffs (oldBee, newBee) {
+  // For easier comparisons of the values
+  oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
+  newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
+
   const oldIndexedL = oldBee.core.indexedLength
+  const oldDiffStream = oldBee.createDiffStream(oldIndexedL)
+  const newDiffStream = newBee.createDiffStream(oldIndexedL)
 
-  const newApplyDiff = new Map()
-  for await (const entry of newBee.createDiffStream(oldIndexedL)) {
-    newApplyDiff.set(getChangedKey(entry), entry)
-  }
+  const unionised = new Union(
+    oldDiffStream,
+    newDiffStream,
+    {
+      compare: (e1, e2) => b4a.compare(getKey(e1), getKey(e2)),
+      map: (oldEntry, newEntry) => {
+        if (oldEntry === null) return newEntry
+        // Old entries require undoing, so reverse
+        if (newEntry === null) return { seq: oldEntry.seq, left: oldEntry.right, right: oldEntry.left }
 
-  const oldToUndoDiff = new Map()
-  for await (const entry of oldBee.createDiffStream(oldIndexedL)) {
-    oldToUndoDiff.set(getChangedKey(entry), entry)
-  }
-
-  const res = []
-  for (const newEntry of newApplyDiff.values()) {
-    if (shouldAddNewEntry(newEntry, oldToUndoDiff)) {
-      res.push(newEntry)
+        const leftEq = areEqual(oldEntry.left, newEntry.left)
+        const rightEq = areEqual(oldEntry.right, newEntry.right)
+        if (!(leftEq && rightEq)) return rightEq
+        // else: already processed in prev getDiffs, so filter out
+        return null
+      }
     }
-  }
+  )
 
-  for (const [key, entry] of oldToUndoDiff) {
-    if (!newApplyDiff.has(key)) {
-      // Undo, so add<->delete (left<->right)
-      res.push({ seq: entry.seq, left: entry.right, right: entry.left })
-    }
-  }
-
-  return res
+  return unionised
 }
 
 module.exports = getDiffs
