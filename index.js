@@ -30,12 +30,17 @@ function unionMap (oldEntry, newEntry) {
 
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts) {
-    oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
-    newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
-
     const oldIndexedL = oldBee.core.indexedLength
-    const oldDiffStream = oldBee.createDiffStream(oldIndexedL)
-    const newDiffStream = newBee.createDiffStream(oldIndexedL)
+
+    // Binary encodings for easier comparison later
+    const oldDiffStream = oldBee.createDiffStream(oldIndexedL, {
+      keyEncoding: 'binary',
+      valueEncoding: 'binary'
+    })
+    const newDiffStream = newBee.createDiffStream(oldIndexedL, {
+      keyEncoding: 'binary',
+      valueEncoding: 'binary'
+    })
 
     super(oldDiffStream, newDiffStream, {
       compare: unionCompare,
