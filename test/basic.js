@@ -107,7 +107,7 @@ test('both new index and new fork--old had up to date index', async t => {
   t.alike(diffs.map(({ right }) => right), [null, null, null])
 })
 
-test('merging in remote fork when indexedLength still 0', async t => {
+test('local version > 0, indexedLength still 0--merge in remote fork', async t => {
   const bases = await setup(t)
   const [base1, base2, readOnlyBase] = bases
 
