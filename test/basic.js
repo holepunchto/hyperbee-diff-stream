@@ -240,9 +240,10 @@ test('complex autobase linearisation with truncates and deletes', async t => {
     base1.append({ entry: ['1-4', '1-entry4'] }),
     base1.append({ delete: '1-1' }),
     base2.append({ entry: ['2-1', '2-entry1'] }),
-    base2.append({ entry: ['2-2', '2-entry2'] }),
-    base1.append({ delete: '1-3' })
+    base2.append({ entry: ['2-2', '2-entry2'] })
   ])
+
+  await base1.append({ delete: '1-3' })
 
   const origBee = base1.view.bee.snapshot()
   const origIndexedL = origBee.core.indexedLength
