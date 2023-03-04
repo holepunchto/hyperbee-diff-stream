@@ -280,6 +280,58 @@ test('complex autobase linearisation with truncates and deletes', async t => {
   t.is(hasTruncated, true)
 })
 
+test('yields with original encoding', async function (t) {
+  const bases = await setup(t, {
+    openFun: (linStore, base) => {
+      return new SimpleView(base, linStore.get('simple-bee'), {
+        keyEncoding: 'utf-8',
+        valueEncoding: 'json'
+      })
+    }
+  })
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['1-1', { name: 'name1' }] })
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['2-1', { name: '2-name1' }] })
+  await base1.append({ entry: ['1-2', { name: 'name2' }] })
+  await base1.append({ delete: '1-1' })
+
+  await confirm(base1, base2)
+
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  const expected = [
+    {
+      left: null,
+      right: {
+        seq: 1,
+        key: '1-1',
+        value: { name: 'name1' }
+      }
+    },
+    {
+      left: {
+        seq: 2,
+        key: '1-2',
+        value: { name: 'name2' }
+      },
+      right: null
+    }, {
+      left: {
+        seq: 4,
+        key: '2-1',
+        value: { name: '2-name1' }
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
@@ -290,9 +342,9 @@ async function confirm (base1, base2) {
   await sync(base1, base2)
 }
 
-async function setup (t) {
+async function setup (t, { openFun = open } = {}) {
   // 2 writers, 1 read-only
-  const bases = await create(3, (...args) => apply(t, ...args), open)
+  const bases = await create(3, (...args) => apply(t, ...args), openFun)
   const [base1, base2] = bases
 
   await base1.append({
@@ -307,9 +359,9 @@ async function setup (t) {
 }
 
 class SimpleView {
-  constructor (base, core) {
+  constructor (base, core, opts = {}) {
     this.base = base
-    this.bee = new Hyperbee(core, { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+    this.bee = new Hyperbee(core, { extension: false, keyEncoding: 'binary', valueEncoding: 'binary', ...opts })
   }
 
   async ready () {
