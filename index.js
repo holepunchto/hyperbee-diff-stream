@@ -36,7 +36,7 @@ class BeeDiffStream extends Union {
     // A normal bee doesn't have indexedLength.
     // In this case, we fallback to the version,
     // and the result is a normal diffStream
-    const oldIndexedL = oldBee.core.indexedLength || oldBee.version
+    const oldIndexedL = oldBee.core.isAutobase ? oldBee.core.indexedLength : oldBee.version
     const oldDiffStream = oldBee.createDiffStream(oldIndexedL)
     const newDiffStream = newBee.createDiffStream(oldIndexedL)
 
