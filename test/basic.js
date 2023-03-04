@@ -107,6 +107,31 @@ test('both new index and new fork--old had up to date index', async t => {
   t.alike(diffs.map(({ right }) => right), [null, null, null])
 })
 
+test('merging in remote fork when indexedLength still 0', async t => {
+  const bases = await setup(t)
+  const [base1, base2, readOnlyBase] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await base2.append({ entry: ['2-1', '2-entry1'] })
+
+  const origBee = base2.view.bee.snapshot()
+  const origIndexedL = base2.view.bee.core.indexedLength
+  t.is(origIndexedL, 0) // Sanity check
+  t.is(origBee.version, 2) // Sanity check
+
+  await sync(...bases)
+
+  const newBee = readOnlyBase.view.bee.snapshot()
+
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  t.is(newBee.feed.indexedLength, 0) // Sanity check
+  t.is(newBee.version, 4) // Sanity check
+
+  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
+  t.alike(diffs.map(({ right }) => right), [null, null])
+})
+
 test('new index, new fork and old fork all resolved nicely', async t => {
   const bases = await setup(t)
   const [base1, base2, readOnlyBase] = bases
