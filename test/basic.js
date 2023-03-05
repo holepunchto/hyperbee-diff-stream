@@ -1,5 +1,6 @@
 const test = require('brittle')
 const Hyperbee = require('hyperbee')
+const b4a = require('b4a')
 
 const BeeDiffStream = require('../index')
 const { create, sync } = require('./helpers')
@@ -278,6 +279,22 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 
   // Sanity check: we did indeed truncate
   t.is(hasTruncated, true)
+})
+
+test('can handle hyperbee without key or value encoding', async function (t) {
+  const bases = await setup(t)
+
+  const base1 = bases[0]
+  const bee = base1.view.bee
+  bee.keyEncoding = null
+  bee.valueEncoding = null
+
+  const oldBee = bee.snapshot()
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+
+  const diffs = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  t.alike(diffs.map(({ left }) => left?.key), [b4a.from('1-1')])
+  t.alike(diffs.map(({ right }) => right?.key), [undefined]) // deletions
 })
 
 test('yields with original encoding', async function (t) {

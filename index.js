@@ -16,21 +16,30 @@ function unionCompare (e1, e2) {
   return b4a.compare(getKey(e1), getKey(e2))
 }
 
+function conditionalDecoder (encoding) {
+  return encoding
+    ? entry => encoding.decode(entry)
+    : entry => entry
+}
+
 function decoderFactory ({ keyEncoding, valueEncoding }) {
+  const decodeKey = conditionalDecoder(keyEncoding)
+  const decodeValue = conditionalDecoder(valueEncoding)
+
   return function decode (diffEntry) {
     const res = { left: null, right: null }
     if (diffEntry.left) {
       res.left = {
         seq: diffEntry.left.seq,
-        key: keyEncoding.decode(diffEntry.left.key),
-        value: valueEncoding.decode(diffEntry.left.value)
+        key: decodeKey(diffEntry.left.key),
+        value: decodeValue(diffEntry.left.value)
       }
     }
     if (diffEntry.right) {
       res.right = {
         seq: diffEntry.right.seq,
-        key: keyEncoding.decode(diffEntry.right.key),
-        value: valueEncoding.decode(diffEntry.right.value)
+        key: decodeKey(diffEntry.right.key),
+        value: decodeValue(diffEntry.right.value)
       }
     }
     return res
@@ -56,7 +65,7 @@ function unionMapFactory (decoderOpts) {
 }
 
 class BeeDiffStream extends Union {
-  constructor (oldBee, newBee, opts) {
+  constructor (oldBee, newBee, opts = {}) {
     const oldIndexedL = oldBee.core.indexedLength
 
     // Binary encodings for easier comparison later
