@@ -281,14 +281,7 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 })
 
 test('yields with original encoding', async function (t) {
-  const bases = await setup(t, {
-    openFun: (linStore, base) => {
-      return new SimpleView(base, linStore.get('simple-bee'), {
-        keyEncoding: 'utf-8',
-        valueEncoding: 'json'
-      })
-    }
-  })
+  const bases = await setup(t, { openFun: encodedOpen })
 
   const [base1, base2] = bases
   const bee = base1.view.bee
@@ -325,6 +318,39 @@ test('yields with original encoding', async function (t) {
         seq: 4,
         key: '2-1',
         value: { name: '2-name1' }
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
+test('can pass diffStream range opts', async function (t) {
+  const bases = await setup(t, { openFun: encodedOpen })
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['1-1', { name: 'name1' }] })
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['2-1', { name: '2-name1' }] })
+  await base1.append({ entry: ['1-2', { name: 'name2' }] })
+  await base1.append({ delete: '1-1' })
+
+  await confirm(base1, base2)
+
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
+    gt: '1-1',
+    lt: '2-1'
+  }))
+  const expected = [
+    {
+      left: {
+        seq: 2,
+        key: '1-2',
+        value: { name: 'name2' }
       },
       right: null
     }
@@ -378,10 +404,17 @@ class SimpleView {
 }
 
 function open (linStore, base) {
-  const core = linStore.get('simple-bee', { valueEncoding: 'binary' })
+  const core = linStore.get('simple-bee')
 
   const view = new SimpleView(base, core)
   return view
+}
+
+function encodedOpen (linStore, base) {
+  return new SimpleView(base, linStore.get('simple-bee'), {
+    keyEncoding: 'utf-8',
+    valueEncoding: 'json'
+  })
 }
 
 async function apply (t, batch, simpleView, base) {

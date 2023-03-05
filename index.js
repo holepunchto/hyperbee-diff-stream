@@ -61,10 +61,12 @@ class BeeDiffStream extends Union {
 
     // Binary encodings for easier comparison later
     const oldDiffStream = oldBee.createDiffStream(oldIndexedL, {
+      ...opts,
       keyEncoding: 'binary',
       valueEncoding: 'binary'
     })
     const newDiffStream = newBee.createDiffStream(oldIndexedL, {
+      ...opts,
       keyEncoding: 'binary',
       valueEncoding: 'binary'
     })
