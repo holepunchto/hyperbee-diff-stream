@@ -426,6 +426,23 @@ test('diffStream range opts are encoded (handles sub-encodings)', async function
   t.alike(diff, expected)
 })
 
+test('can pass in key- or valueEncoding', async function (t) {
+  const bases = await setup(t)
+  const base1 = bases[0]
+
+  const bee = base1.view.bee
+  const origBee = bee.snapshot()
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+
+  t.alike((await bee.get('1-1')).key, b4a.from('1-1')) // Sanity check that encoding is binary
+  const keyTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { keyEncoding: 'utf-8' }))
+  const valueTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { valueEncoding: 'utf-8' }))
+
+  t.alike(keyTextDiffs, [{ left: { seq: 1, key: '1-1', value: b4a.from('1-entry1') }, right: null }])
+  t.alike(valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
