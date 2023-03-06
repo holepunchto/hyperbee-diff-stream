@@ -86,14 +86,12 @@ class BeeDiffStream extends Union {
     oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
     newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
 
-    let range = {}
+    const range = {}
     if (keyEncoding) {
-      range = {
-        gt: opts.gt !== undefined ? enc(keyEncoding, opts.gt) : undefined,
-        gte: opts.gte !== undefined ? enc(keyEncoding, opts.gte) : undefined,
-        lt: opts.lt !== undefined ? enc(keyEncoding, opts.lt) : undefined,
-        lte: opts.lte !== undefined ? enc(keyEncoding, opts.lte) : undefined
-      }
+      if (opts.gt !== undefined) range.gt = enc(keyEncoding, opts.gt)
+      if (opts.gte !== undefined) range.gte = enc(keyEncoding, opts.gte)
+      if (opts.lt !== undefined) range.lt = enc(keyEncoding, opts.lt)
+      if (opts.lte !== undefined) range.lte = enc(keyEncoding, opts.lte)
     }
 
     const oldDiffStream = oldBee.createDiffStream(oldIndexedL, range)
