@@ -67,37 +67,29 @@ function unionMapFactory (decoderOpts) {
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts = {}) {
     const oldIndexedL = oldBee.core.indexedLength
-    const keyEnc = oldBee.keyEncoding
+    const keyEncoding = oldBee.keyEncoding
+    const valueEncoding = oldBee.valueEncoding
+
+    // Binary encodings for easier comparison later
+    oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
+    newBee = newBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
 
     let range = {}
-    if (keyEnc) {
+    if (keyEncoding) {
       range = {
-        gt: opts.gt !== undefined ? enc(keyEnc, opts.gt) : undefined,
-        gte: opts.gte !== undefined ? enc(keyEnc, opts.gte) : undefined,
-        lt: opts.lt !== undefined ? enc(keyEnc, opts.lt) : undefined,
-        lte: opts.lte !== undefined ? enc(keyEnc, opts.lte) : undefined
+        gt: opts.gt !== undefined ? enc(keyEncoding, opts.gt) : undefined,
+        gte: opts.gte !== undefined ? enc(keyEncoding, opts.gte) : undefined,
+        lt: opts.lt !== undefined ? enc(keyEncoding, opts.lt) : undefined,
+        lte: opts.lte !== undefined ? enc(keyEncoding, opts.lte) : undefined
       }
     }
 
-    // Binary encodings for easier comparison later
-    const oldDiffStream = oldBee.createDiffStream(oldIndexedL, {
-      ...range,
-      keyEncoding: 'binary',
-      valueEncoding: 'binary'
-    })
-    const newDiffStream = newBee.createDiffStream(oldIndexedL, {
-      ...range,
-      keyEncoding: 'binary',
-      valueEncoding: 'binary'
-    })
+    const oldDiffStream = oldBee.createDiffStream(oldIndexedL, range)
+    const newDiffStream = newBee.createDiffStream(oldIndexedL, range)
 
-    const mapFun = unionMapFactory({
-      keyEncoding: oldBee.keyEncoding,
-      valueEncoding: oldBee.valueEncoding
-    })
     super(oldDiffStream, newDiffStream, {
       compare: unionCompare,
-      map: mapFun,
+      map: unionMapFactory({ keyEncoding, valueEncoding }),
       ...opts
     })
   }
