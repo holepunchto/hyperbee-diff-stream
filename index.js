@@ -65,6 +65,13 @@ function unionMapFactory (decoderOpts) {
   }
 }
 
+function enc (e, v) {
+  if (v === undefined || v === null) return null
+  if (e !== null) return e.encode(v)
+  if (typeof v === 'string') return b4a.from(v)
+  return v
+}
+
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts = {}) {
     const keyEncoding = opts.keyEncoding ? codecs(opts.keyEncoding) : oldBee.keyEncoding
@@ -98,13 +105,6 @@ class BeeDiffStream extends Union {
       ...opts
     })
   }
-}
-
-function enc (e, v) {
-  if (v === undefined || v === null) return null
-  if (e !== null) return e.encode(v)
-  if (typeof v === 'string') return b4a.from(v)
-  return v
 }
 
 module.exports = BeeDiffStream
