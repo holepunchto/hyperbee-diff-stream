@@ -1,4 +1,3 @@
-# ci for autobase-next
 name: ci
 on:
   push:
