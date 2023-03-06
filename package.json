@@ -1,13 +1,22 @@
 {
-  "name": "bee-differ",
+  "private": true,
+  "name": "hyperbee-diff-stream",
   "version": "0.0.1",
-  "description": "",
+  "description": "Get the diff stream between two versions of a hyperbee (supports autobase views)",
   "main": "index.js",
   "scripts": {
     "test": "standard && brittle test/*.js --coverage"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holepunchto/hyperbee-diff-stream.git"
+  },
+  "bugs": {
+    "url": "https://github.com/holepunchto/hyperbee-diff-stream/issues"
+  },
+  "homepage": "https://github.com/holepunchto/hyperbee-diff-stream#readme",
   "author": "H. Degroote",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "autobase-next": "github:holepunchto/autobase-next",
     "brittle": "^3.1.1",
