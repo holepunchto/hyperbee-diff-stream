@@ -2,6 +2,8 @@ const test = require('brittle')
 const Hyperbee = require('hyperbee')
 const b4a = require('b4a')
 const SubEncoder = require('sub-encoder')
+const ram = require('random-access-memory')
+const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
 const { create, sync } = require('./helpers')
@@ -105,6 +107,31 @@ test('both new index and new fork--old had up to date index', async t => {
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-3', '1-4', '1-5'])
   t.alike(diffs.map(({ right }) => right), [null, null, null])
+})
+
+test('local version > 0, indexedLength still 0--merge in remote fork', async t => {
+  const bases = await setup(t)
+  const [base1, base2, readOnlyBase] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await base2.append({ entry: ['2-1', '2-entry1'] })
+
+  const origBee = base2.view.bee.snapshot()
+  const origIndexedL = base2.view.bee.core.indexedLength
+  t.is(origIndexedL, 0) // Sanity check
+  t.is(origBee.version, 2) // Sanity check
+
+  await sync(...bases)
+
+  const newBee = readOnlyBase.view.bee.snapshot()
+
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  t.is(newBee.feed.indexedLength, 0) // Sanity check
+  t.is(newBee.version, 4) // Sanity check
+
+  t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
+  t.alike(diffs.map(({ right }) => right), [null, null])
 })
 
 test('new index, new fork and old fork all resolved nicely', async t => {
@@ -280,6 +307,27 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 
   // Sanity check: we did indeed truncate
   t.is(hasTruncated, true)
+})
+
+test('works with normal hyperbee', async function (t) {
+  const bee = new Hyperbee(new Hypercore(ram))
+  await bee.put('e1', 'entry1')
+
+  const oldSnap = bee.snapshot()
+
+  await bee.put('e2', 'entry2')
+  await bee.put('e3', 'entry3')
+  await bee.del('e2')
+  await bee.del('e1')
+
+  const newSnap = bee.snapshot()
+  const diffs = await streamToArray(new BeeDiffStream(oldSnap, newSnap))
+
+  t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
+  t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
+
+  const directDiffs = await streamToArray(newSnap.createDiffStream(oldSnap.version))
+  t.alike(directDiffs, diffs)
 })
 
 test('can handle hyperbee without key or value encoding', async function (t) {

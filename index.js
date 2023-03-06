@@ -1,6 +1,6 @@
 const Union = require('sorted-union-stream')
 const b4a = require('b4a')
-var codecs = require('codecs')
+const codecs = require('codecs')
 
 function getKey (diffEntry) {
   const { left, right } = diffEntry
@@ -67,9 +67,13 @@ function unionMapFactory (decoderOpts) {
 
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts = {}) {
-    const oldIndexedL = oldBee.core.indexedLength
     const keyEncoding = opts.keyEncoding ? codecs(opts.keyEncoding) : oldBee.keyEncoding
     const valueEncoding = opts.valueEncoding ? codecs(opts.valueEncoding) : oldBee.valueEncoding
+
+    // A normal bee doesn't have indexedLength.
+    // In this case, we fallback to the version,
+    // and the result is a normal diffStream
+    const oldIndexedL = oldBee.core.isAutobase ? oldBee.core.indexedLength : oldBee.version
 
     // Binary encodings for easier comparison later
     oldBee = oldBee.snapshot({ keyEncoding: 'binary', valueEncoding: 'binary' })
