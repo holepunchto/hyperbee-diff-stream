@@ -67,15 +67,26 @@ function unionMapFactory (decoderOpts) {
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts = {}) {
     const oldIndexedL = oldBee.core.indexedLength
+    const keyEnc = oldBee.keyEncoding
+
+    let range = {}
+    if (keyEnc) {
+      range = {
+        gt: opts.gt !== undefined ? enc(keyEnc, opts.gt) : undefined,
+        gte: opts.gte !== undefined ? enc(keyEnc, opts.gte) : undefined,
+        lt: opts.lt !== undefined ? enc(keyEnc, opts.lt) : undefined,
+        lte: opts.lte !== undefined ? enc(keyEnc, opts.lte) : undefined
+      }
+    }
 
     // Binary encodings for easier comparison later
     const oldDiffStream = oldBee.createDiffStream(oldIndexedL, {
-      ...opts,
+      ...range,
       keyEncoding: 'binary',
       valueEncoding: 'binary'
     })
     const newDiffStream = newBee.createDiffStream(oldIndexedL, {
-      ...opts,
+      ...range,
       keyEncoding: 'binary',
       valueEncoding: 'binary'
     })
@@ -90,6 +101,13 @@ class BeeDiffStream extends Union {
       ...opts
     })
   }
+}
+
+function enc (e, v) {
+  if (v === undefined || v === null) return null
+  if (e !== null) return e.encode(v)
+  if (typeof v === 'string') return b4a.from(v)
+  return v
 }
 
 module.exports = BeeDiffStream

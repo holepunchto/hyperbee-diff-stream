@@ -1,6 +1,7 @@
 const test = require('brittle')
 const Hyperbee = require('hyperbee')
 const b4a = require('b4a')
+const SubEncoder = require('sub-encoder')
 
 const BeeDiffStream = require('../index')
 const { create, sync } = require('./helpers')
@@ -368,6 +369,56 @@ test('can pass diffStream range opts', async function (t) {
         seq: 2,
         key: '1-2',
         value: { name: 'name2' }
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
+test('diffStream range opts are encoded (handles sub-encodings)', async function (t) {
+  const bases = await setup(t)
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['not-subbed', 'no'] }) // Before the sub, to check it is not included
+
+  // hack to use a sub-encoding from now on
+  const enc = new SubEncoder()
+  bee.keyEncoding = enc.sub('sub')
+
+  await base1.append({ entry: ['a-before', 'entry1'] })
+
+  // sanity check that the 'not-subbed' entry is indeed not in the sub
+  t.alike(
+    (await bee.get('not-subbed', { keyEncoding: 'binary' })).key,
+    b4a.from('not-subbed')
+  )
+  t.is(await bee.get('not-subbed'), null)
+
+  // Add more subbed entries
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['z-after', '2-entry1'] })
+  await base1.append({ entry: ['included', 'entry2'] })
+  await base1.append({ delete: 'a-before' })
+
+  await confirm(base1, base2)
+
+  // Diff stream should apply the 'gt' and 'st' conditions only to the sub
+  // so 'not-subbed' will not be included, even though it fits in the range
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
+    gt: 'a-before',
+    lt: 'z-after'
+  }))
+  const expected = [
+    {
+      left: {
+        seq: 3,
+        key: b4a.from('included'),
+        value: b4a.from('entry2')
       },
       right: null
     }
