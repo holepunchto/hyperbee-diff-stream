@@ -26,11 +26,9 @@ function unionCompare (e1, e2) {
 }
 
 function decodeValue (diffEntry, valueEncoding) {
-  if (!valueEncoding) return diffEntry
+  if (!valueEncoding || !diffEntry) return diffEntry
 
-  if (diffEntry.left) diffEntry.left.value = valueEncoding.decode(diffEntry.left.value)
-  if (diffEntry.right) diffEntry.right.value = valueEncoding.decode(diffEntry.right.value)
-
+  diffEntry.value = valueEncoding.decode(diffEntry.value)
   return diffEntry
 }
 
@@ -38,10 +36,12 @@ function createUnionMap (valueEncoding) {
   const decode = diffEntry => decodeValue(diffEntry, valueEncoding)
 
   return function unionMap (oldEntry, newEntry) {
-    if (oldEntry === null) return decode(newEntry)
+    if (oldEntry === null) {
+      return { left: decode(newEntry.left), right: decode(newEntry.right) }
+    }
     if (newEntry === null) {
       // Old entries require undoing, so reverse
-      return decode({ left: oldEntry.right, right: oldEntry.left })
+      return { left: decode(oldEntry.right), right: decode(oldEntry.left) }
     }
 
     const haveSameNewValue = areEqual(oldEntry.left, newEntry.left)
@@ -50,7 +50,7 @@ function createUnionMap (valueEncoding) {
       // Newest entry wins, but the previous state (.right) is not the value
       // at the last indexedLength, since an oldDiffEntry exists for the same key
       // So we yield that oldDiffEntry's final state as previous state for this change
-      return { left: decode(newEntry).left, right: decode(oldEntry).left }
+      return { left: decode(newEntry.left), right: decode(oldEntry.left) }
     }
     // else: already processed in prev getDiffs, so filter out
     return null
