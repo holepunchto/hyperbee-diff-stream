@@ -44,9 +44,9 @@ function createUnionMap (valueEncoding) {
       return decode({ left: oldEntry.right, right: oldEntry.left })
     }
 
-    const leftEq = areEqual(oldEntry.left, newEntry.left)
-    const rightEq = areEqual(oldEntry.right, newEntry.right)
-    if (!(leftEq && rightEq)) return decode(newEntry) // newest wins
+    const haveSameNewValue = areEqual(oldEntry.left, newEntry.left)
+
+    if (!haveSameNewValue) return decode(newEntry) // newest wins
     // else: already processed in prev getDiffs, so filter out
     return null
   }
