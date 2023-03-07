@@ -19,8 +19,7 @@ function unionCompare (e1, e2) {
 
   if (b4a.isBuffer(k1)) return b4a.compare(k1, k2)
   if (typeof k1 === 'string') {
-    if (k1 > k2) return 1
-    return k1 < k2 ? -1 : 0
+    return k1 < k2 ? -1 : k1 > k2 ? 1 : 0
   }
 
   throw new Error('Only string or buffer supported')
