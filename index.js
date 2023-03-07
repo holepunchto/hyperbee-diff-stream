@@ -68,14 +68,26 @@ class BeeDiffStream extends Union {
       ? Math.min(leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength)
       : leftSnapshot.version // A normal bee doesn't have indexedLength (becomes a normal diffStream)
 
-    const toUndoDiffStream = leftSnapshot.snapshot().createDiffStream(sharedIndexedL, opts)
-    const toApplyDiffStream = rightSnapshot.snapshot().createDiffStream(sharedIndexedL, opts)
+    const toUndoDiffStream = leftSnapshot.createDiffStream(sharedIndexedL, opts)
+    const toApplyDiffStream = rightSnapshot.createDiffStream(sharedIndexedL, opts)
 
     super(toUndoDiffStream, toApplyDiffStream, {
       compare: unionCompare,
-      map: createUnionMap(valueEncoding),
-      ...opts
+      map: createUnionMap(valueEncoding)
     })
+
+    this._leftSnapshot = leftSnapshot
+    this._rightSnapshot = rightSnapshot
+  }
+
+  async _destroy (cb) {
+    try {
+      await Promise.all([this._leftSnapshot.close(), this._rightSnapshot.close()])
+    } catch (e) {
+      cb(e)
+      return
+    }
+    super._destroy(cb)
   }
 }
 

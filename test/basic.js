@@ -391,12 +391,12 @@ test('works with normal hyperbee', async function (t) {
   await bee.del('e1')
 
   const newSnap = bee.snapshot()
+  const directDiffs = await streamToArray(newSnap.createDiffStream(oldSnap.version))
   const diffs = await streamToArray(new BeeDiffStream(oldSnap, newSnap))
 
   t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
-  const directDiffs = await streamToArray(newSnap.createDiffStream(oldSnap.version))
   t.alike(directDiffs, diffs)
 })
 
@@ -606,6 +606,23 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
 
   t.is(diffsBee2.length, 2) // sanity check
   t.alike(diffsBee2, reverseDiffsBee2.map(({ left, right }) => { return { left: right, right: left } }))
+})
+
+test('passed snapshots close when the beeDiffStream is destroyed', async t => {
+  t.plan(2)
+  const bases = await setup(t)
+  const base1 = bases[0]
+
+  const origBee = base1.view.bee.snapshot()
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  const newBee = base1.view.bee.snapshot()
+
+  const diffStream = new BeeDiffStream(origBee, newBee)
+  diffStream.on('close', () => {
+    t.is(origBee.core.closed, true)
+    t.is(newBee.core.closed, true)
+  })
+  diffStream.destroy()
 })
 
 async function confirm (base1, base2) {
