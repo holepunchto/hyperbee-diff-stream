@@ -73,8 +73,7 @@ class BeeDiffStream extends Union {
 
     super(toUndoDiffStream, toApplyDiffStream, {
       compare: unionCompare,
-      map: createUnionMap(valueEncoding),
-      ...opts
+      map: createUnionMap(valueEncoding)
     })
 
     this._leftSnapshot = leftSnapshot
