@@ -34,7 +34,7 @@ function decodeValue (diffEntry, valueEncoding) {
   return diffEntry
 }
 
-function unionMapFactory (valueEncoding) {
+function createUnionMap (valueEncoding) {
   const decode = diffEntry => decodeValue(diffEntry, valueEncoding)
 
   return function unionMap (oldEntry, newEntry) {
@@ -71,7 +71,7 @@ class BeeDiffStream extends Union {
 
     super(oldDiffStream, newDiffStream, {
       compare: unionCompare,
-      map: unionMapFactory(valueEncoding),
+      map: createUnionMap(valueEncoding),
       ...opts
     })
   }
