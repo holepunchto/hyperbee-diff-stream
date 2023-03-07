@@ -200,6 +200,44 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['1-1', undefined, undefined])
 })
 
+test('new snapshot has same final value as old fork but through different path ->no change', async t => {
+  const bases = await setup(t, { openFun: encodedOpen })
+  const [base1, base2] = bases
+
+  await base1.append({ entry: ['shared', 'shared-entry'] })
+  await base1.append({ entry: ['to-be-deleted', 'shared-delete'] })
+
+  await confirm(base1, base2)
+  // Both base1 will modify shared to 'change' and will delete 'to-be-deleted'
+  // but through a different series of operations
+
+  await base1.append({ entry: ['shared', 'I'] })
+  await base1.append({ entry: ['shared', 'like'] })
+  await base1.append({ entry: ['shared', 'local'] })
+  await base1.append({ entry: ['shared', 'change'] })
+  await base1.append({ entry: ['shared', 'change'] })
+  await base1.append({ entry: ['to-be-deleted', 'about to be deleted'] })
+  await base1.append({ delete: 'to-be-deleted' })
+
+  const origBee = base1.view.bee.snapshot()
+  // Normally base1 would now create the diffStream and yield the changes to this point
+  // So reaching here, it has yielded 'change' and the deletion already
+
+  // Now base2 also makes local changes to the same entries
+  // ending up with the same net changes
+  await base2.append({ entry: ['shared', 'Different path'] })
+  await base2.append({ entry: ['shared', 'But same resulting'] })
+  await base2.append({ entry: ['shared', 'change'] })
+  await base2.append({ entry: ['something', 'else'] })
+  await base2.append({ delete: 'to-be-deleted' })
+
+  await confirm(base1, base2)
+  const newBee = base1.view.bee.snapshot() // Need only yield 'something->else' as change
+
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  t.alike(diffs, [{ left: { seq: 13, key: 'something', value: 'else' }, right: null }])
+})
+
 test('complex autobase linearisation with truncates', async t => {
   const bases = await setup(t)
   const [base1, base2] = bases
