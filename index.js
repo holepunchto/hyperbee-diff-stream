@@ -18,7 +18,7 @@ function unionCompare (e1, e2) {
   const k2 = getKey(e2)
 
   if (b4a.isBuffer(k1)) return b4a.compare(k1, k2)
-  else if (typeof k1 === 'string') {
+  if (typeof k1 === 'string') {
     if (k1 > k2) return 1
     return k1 < k2 ? -1 : 0
   }
