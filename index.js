@@ -63,9 +63,9 @@ class BeeDiffStream extends Union {
     // Binary valueEncoding for easier comparison later
     opts = { ...opts, valueEncoding: 'binary' }
 
-    // A normal bee doesn't have indexedLength.
-    // In this case, we fallback to the version, and the result is a normal diffStream
-    const oldIndexedL = oldBee.core.isAutobase ? oldBee.core.indexedLength : oldBee.version
+    const oldIndexedL = oldBee.core.isAutobase
+      ? Math.min(oldBee.core.indexedLength, newBee.core.indexedLength)
+      : oldBee.version // A normal bee doesn't have indexedLength--use version (becomes a normal diffStream)
 
     const oldDiffStream = oldBee.snapshot().createDiffStream(oldIndexedL, opts)
     const newDiffStream = newBee.snapshot().createDiffStream(oldIndexedL, opts)
