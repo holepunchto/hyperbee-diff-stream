@@ -46,7 +46,12 @@ function createUnionMap (valueEncoding) {
 
     const haveSameNewValue = areEqual(oldEntry.left, newEntry.left)
 
-    if (!haveSameNewValue) return decode(newEntry) // newest wins
+    if (!haveSameNewValue) {
+      // Newest entry wins, but the previous state (.right) is not the value
+      // at the last indexedLength, since an oldDiffEntry exists for the same key
+      // So we yield that oldDiffEntry's final state as previous state for this change
+      return { left: decode(newEntry).left, right: decode(oldEntry).left }
+    }
     // else: already processed in prev getDiffs, so filter out
     return null
   }
