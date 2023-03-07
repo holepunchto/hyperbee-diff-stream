@@ -1,5 +1,7 @@
 const test = require('brittle')
 const Hyperbee = require('hyperbee')
+const b4a = require('b4a')
+const SubEncoder = require('sub-encoder')
 const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
@@ -328,6 +330,167 @@ test('works with normal hyperbee', async function (t) {
   t.alike(directDiffs, diffs)
 })
 
+test('can handle hyperbee without key or value encoding', async function (t) {
+  const bases = await setup(t)
+
+  const base1 = bases[0]
+  const bee = base1.view.bee
+  bee.keyEncoding = null
+  bee.valueEncoding = null
+
+  const oldBee = bee.snapshot()
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+
+  const diffs = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  t.alike(diffs.map(({ left }) => left?.key), [b4a.from('1-1')])
+  t.alike(diffs.map(({ right }) => right?.key), [undefined]) // deletions
+})
+
+test('yields with original encoding', async function (t) {
+  const bases = await setup(t, { openFun: encodedOpen })
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['1-1', { name: 'name1' }] })
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['2-1', { name: '2-name1' }] })
+  await base1.append({ entry: ['1-2', { name: 'name2' }] })
+  await base1.append({ delete: '1-1' })
+
+  await confirm(base1, base2)
+
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  const expected = [
+    {
+      left: null,
+      right: {
+        seq: 1,
+        key: '1-1',
+        value: { name: 'name1' }
+      }
+    },
+    {
+      left: {
+        seq: 2,
+        key: '1-2',
+        value: { name: 'name2' }
+      },
+      right: null
+    }, {
+      left: {
+        seq: 4,
+        key: '2-1',
+        value: { name: '2-name1' }
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
+test('can pass diffStream range opts', async function (t) {
+  const bases = await setup(t, { openFun: encodedOpen })
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['1-1', { name: 'name1' }] })
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['2-1', { name: '2-name1' }] })
+  await base1.append({ entry: ['1-2', { name: 'name2' }] })
+  await base1.append({ delete: '1-1' })
+
+  await confirm(base1, base2)
+
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
+    gt: '1-1',
+    lt: '2-1'
+  }))
+  const expected = [
+    {
+      left: {
+        seq: 2,
+        key: '1-2',
+        value: { name: 'name2' }
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
+test('diffStream range opts are encoded (handles sub-encodings)', async function (t) {
+  const bases = await setup(t)
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['not-subbed', 'no'] }) // Before the sub, to check it is not included
+
+  // hack to use a sub-encoding from now on
+  const enc = new SubEncoder()
+  bee.keyEncoding = enc.sub('sub')
+
+  await base1.append({ entry: ['a-before', 'entry1'] })
+
+  // sanity check that the 'not-subbed' entry is indeed not in the sub
+  t.alike(
+    (await bee.get('not-subbed', { keyEncoding: 'binary' })).key,
+    b4a.from('not-subbed')
+  )
+  t.is(await bee.get('not-subbed'), null)
+
+  // Add more subbed entries
+  const oldBee = bee.snapshot()
+  await confirm(base1, base2)
+
+  await base2.append({ entry: ['z-after', '2-entry1'] })
+  await base1.append({ entry: ['included', 'entry2'] })
+  await base1.append({ delete: 'a-before' })
+
+  await confirm(base1, base2)
+
+  // Diff stream should apply the 'gt' and 'st' conditions only to the sub
+  // so 'not-subbed' will not be included, even though it fits in the range
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
+    gt: 'a-before',
+    lt: 'z-after'
+  }))
+  const expected = [
+    {
+      left: {
+        seq: 3,
+        key: b4a.from('included'),
+        value: b4a.from('entry2')
+      },
+      right: null
+    }
+  ]
+  t.alike(diff, expected)
+})
+
+test('can pass in key- or valueEncoding', async function (t) {
+  const bases = await setup(t)
+  const base1 = bases[0]
+
+  const bee = base1.view.bee
+  const origBee = bee.snapshot()
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+
+  t.alike((await bee.get('1-1')).key, b4a.from('1-1')) // Sanity check that encoding is binary
+  const keyTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { keyEncoding: 'utf-8' }))
+  const valueTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { valueEncoding: 'utf-8' }))
+
+  t.alike(keyTextDiffs, [{ left: { seq: 1, key: '1-1', value: b4a.from('1-entry1') }, right: null }])
+  t.alike(valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)
@@ -338,9 +501,9 @@ async function confirm (base1, base2) {
   await sync(base1, base2)
 }
 
-async function setup (t) {
+async function setup (t, { openFun = open } = {}) {
   // 2 writers, 1 read-only
-  const bases = await create(3, (...args) => apply(t, ...args), open)
+  const bases = await create(3, (...args) => apply(t, ...args), openFun)
   const [base1, base2] = bases
 
   await base1.append({
@@ -355,9 +518,9 @@ async function setup (t) {
 }
 
 class SimpleView {
-  constructor (base, core) {
+  constructor (base, core, opts = {}) {
     this.base = base
-    this.bee = new Hyperbee(core, { extension: false, keyEncoding: 'binary', valueEncoding: 'binary' })
+    this.bee = new Hyperbee(core, { extension: false, keyEncoding: 'binary', valueEncoding: 'binary', ...opts })
   }
 
   async ready () {
@@ -374,10 +537,17 @@ class SimpleView {
 }
 
 function open (linStore, base) {
-  const core = linStore.get('simple-bee', { valueEncoding: 'binary' })
+  const core = linStore.get('simple-bee')
 
   const view = new SimpleView(base, core)
   return view
+}
+
+function encodedOpen (linStore, base) {
+  return new SimpleView(base, linStore.get('simple-bee'), {
+    keyEncoding: 'utf-8',
+    valueEncoding: 'json'
+  })
 }
 
 async function apply (t, batch, simpleView, base) {
