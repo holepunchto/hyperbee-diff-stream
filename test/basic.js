@@ -561,6 +561,53 @@ test('can pass in key- or valueEncoding', async function (t) {
   t.alike(valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
 })
 
+test('reversing old- and new snapshot position yields reversed left-right', async function (t) {
+  // We use a complex scenario to increase the probability of detecting potential issues
+  const bases = await setup(t, { openFun: encodedOpen })
+  const [base1, base2] = bases
+
+  await base1.append({ entry: ['1-1', '1-entry1'] })
+  await base1.append({ entry: ['1-2', '1-entry2'] })
+  await base1.append({ entry: ['shared', 'shared-init'] })
+  await base1.append({ entry: ['shared-del', 'to-be-deleted'] })
+  await confirm(base1, base2)
+
+  await Promise.all([
+    base1.append({ entry: ['1-3', '1-entry3'] }),
+    base1.append({ entry: ['1-4', '1-entry4'] }),
+    base1.append({ entry: ['shared', 'temp-shared-value'] }),
+    base1.append({ entry: ['shared', 'shared-final'] }),
+    base1.append({ entry: ['shared-del', 'will be deleted in linearisation'] }),
+    base2.append({ entry: ['2-1', '2-entry1'] }),
+    base2.append({ entry: ['2-2', '2-entry2'] }),
+    base2.append({ entry: ['2-3', '2-entry3'] }),
+    base2.append({ entry: ['shared', 'to-be-insta-changed'] }),
+    base2.append({ entry: ['shared', 'shared-final'] }),
+    base2.append({ delete: 'shared-del' })
+  ])
+
+  const origBee = base1.view.bee.snapshot()
+  const origBee2 = base2.view.bee.snapshot()
+
+  await confirm(base1, base2)
+
+  const newBee1 = base1.view.bee.snapshot()
+  const newBee2 = base2.view.bee.snapshot()
+
+  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1))
+  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2))
+
+  const reverseDiffsBee1 = await streamToArray(new BeeDiffStream(newBee1, origBee))
+  const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2, origBee2))
+
+  // Check they are indeed reversed (so left<->right)
+  t.is(diffsBee1.length, 4) // sanity check
+  t.alike(diffsBee1, reverseDiffsBee1.map(({ left, right }) => { return { left: right, right: left } }))
+
+  t.is(diffsBee2.length, 2) // sanity check
+  t.alike(diffsBee2, reverseDiffsBee2.map(({ left, right }) => { return { left: right, right: left } }))
+})
+
 async function confirm (base1, base2) {
   await sync(base1, base2)
   await base1.append(null)

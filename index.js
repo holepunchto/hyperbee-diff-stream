@@ -35,22 +35,22 @@ function decodeValue (diffEntry, valueEncoding) {
 function createUnionMap (valueEncoding) {
   const decode = diffEntry => decodeValue(diffEntry, valueEncoding)
 
-  return function unionMap (oldEntry, newEntry) {
-    if (oldEntry === null) {
-      return { left: decode(newEntry.left), right: decode(newEntry.right) }
+  return function unionMap (undoDiffEntry, applyDiffEntry) {
+    if (undoDiffEntry === null) {
+      return { left: decode(applyDiffEntry.left), right: decode(applyDiffEntry.right) }
     }
-    if (newEntry === null) {
-      // Old entries require undoing, so reverse
-      return { left: decode(oldEntry.right), right: decode(oldEntry.left) }
+    if (applyDiffEntry === null) {
+      // requires undoing, so reverse
+      return { left: decode(undoDiffEntry.right), right: decode(undoDiffEntry.left) }
     }
 
-    const haveSameNewValue = areEqual(oldEntry.left, newEntry.left)
+    const haveSameNewValue = areEqual(undoDiffEntry.left, applyDiffEntry.left)
 
     if (!haveSameNewValue) {
-      // Newest entry wins, but the previous state (.right) is not the value
-      // at the last indexedLength, since an oldDiffEntry exists for the same key
-      // So we yield that oldDiffEntry's final state as previous state for this change
-      return { left: decode(newEntry.left), right: decode(oldEntry.left) }
+      // apply-entry wins, but the previous state (.right) is not the value
+      // at the last indexedLength, since a diffEntry to undo exists for the same key
+      // So we yield that to-undo diffEntry's final state as previous state for this change
+      return { left: decode(applyDiffEntry.left), right: decode(undoDiffEntry.left) }
     }
     // else: already processed in prev getDiffs, so filter out
     return null
@@ -58,19 +58,20 @@ function createUnionMap (valueEncoding) {
 }
 
 class BeeDiffStream extends Union {
-  constructor (oldBee, newBee, opts = {}) {
-    const valueEncoding = opts.valueEncoding ? codecs(opts.valueEncoding) : oldBee.valueEncoding
+  constructor (leftSnapshot, rightSnapshot, opts = {}) {
+    const valueEncoding = opts.valueEncoding ? codecs(opts.valueEncoding) : leftSnapshot.valueEncoding
     // Binary valueEncoding for easier comparison later
     opts = { ...opts, valueEncoding: 'binary' }
 
-    // A normal bee doesn't have indexedLength.
-    // In this case, we fallback to the version, and the result is a normal diffStream
-    const oldIndexedL = oldBee.core.isAutobase ? oldBee.core.indexedLength : oldBee.version
+    // We know that everything indexed in both snapshots is shared
+    const sharedIndexedL = leftSnapshot.core.isAutobase
+      ? Math.min(leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength)
+      : leftSnapshot.version // A normal bee doesn't have indexedLength (becomes a normal diffStream)
 
-    const oldDiffStream = oldBee.snapshot().createDiffStream(oldIndexedL, opts)
-    const newDiffStream = newBee.snapshot().createDiffStream(oldIndexedL, opts)
+    const toUndoDiffStream = leftSnapshot.snapshot().createDiffStream(sharedIndexedL, opts)
+    const toApplyDiffStream = rightSnapshot.snapshot().createDiffStream(sharedIndexedL, opts)
 
-    super(oldDiffStream, newDiffStream, {
+    super(toUndoDiffStream, toApplyDiffStream, {
       compare: unionCompare,
       map: createUnionMap(valueEncoding),
       ...opts
