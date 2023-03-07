@@ -55,19 +55,15 @@ function createUnionMap (valueEncoding) {
 class BeeDiffStream extends Union {
   constructor (oldBee, newBee, opts = {}) {
     const valueEncoding = opts.valueEncoding ? codecs(opts.valueEncoding) : oldBee.valueEncoding
-    opts = { ...opts, valueEncoding: undefined }
+    // Binary valueEncoding for easier comparison later
+    opts = { ...opts, valueEncoding: 'binary' }
 
     // A normal bee doesn't have indexedLength.
-    // In this case, we fallback to the version,
-    // and the result is a normal diffStream
+    // In this case, we fallback to the version, and the result is a normal diffStream
     const oldIndexedL = oldBee.core.isAutobase ? oldBee.core.indexedLength : oldBee.version
 
-    // Binary encodings for easier comparison later
-    oldBee = oldBee.snapshot({ keyEncoding: opts.keyEncoding, valueEncoding: 'binary' })
-    newBee = newBee.snapshot({ keyEncoding: opts.keyEncoding, valueEncoding: 'binary' })
-
-    const oldDiffStream = oldBee.createDiffStream(oldIndexedL, opts)
-    const newDiffStream = newBee.createDiffStream(oldIndexedL, opts)
+    const oldDiffStream = oldBee.snapshot().createDiffStream(oldIndexedL, opts)
+    const newDiffStream = newBee.snapshot().createDiffStream(oldIndexedL, opts)
 
     super(oldDiffStream, newDiffStream, {
       compare: unionCompare,
