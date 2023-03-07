@@ -15,7 +15,7 @@ See [example.js](./example.js)
 
 #### `const diffStream = new BeeDiffStream(leftSnapshot, rightSnapshot, [options])`
 
-Make a new BeeDiffStream instance, which is the stream of changes to get from the state of `leftSnapshot` to that of `rightSnapshot`.
+Make a new `BeeDiffStream` instance, which is the stream of changes to get from the state of `leftSnapshot` to that of `rightSnapshot`.
 
 The changes are ordered by key.
 
