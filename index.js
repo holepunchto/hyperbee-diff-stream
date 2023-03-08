@@ -76,6 +76,10 @@ class BeeDiffStream extends Union {
       map: createUnionMap(valueEncoding)
     })
 
+    // For debugging
+    toUndoDiffStream.on('error', e => console.error('undo stream error:', e))
+    toApplyDiffStream.on('error', e => console.error('apply stream err:', e))
+
     this._leftSnapshot = leftSnapshot
     this._rightSnapshot = rightSnapshot
   }

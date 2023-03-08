@@ -713,3 +713,30 @@ async function streamToArray (stream) {
   }
   return res
 }
+
+test.solo('emits errors thrown during opening of its diffStreams', async t => {
+  t.plan(1)
+  const bases = await setup(t, { openFun: encodedOpen })
+  const [base1, base2] = bases
+
+  const baselineSnap = base2.view.bee.snapshot()
+  await base2.append({ entry: ['2-3', '2-3 added then deleted by 2'] })
+
+  // State just before reconnecting with base1
+  const refSnap = base2.view.bee.snapshot()
+
+  // Error triggers because of consuming a closed stream, but not always.
+  // This seems to reproduce it reliably
+  // It's fixed by passing in refSnap.snapshot() here, instead of refSnap itself
+  await streamToArray(new BeeDiffStream(baselineSnap, refSnap))
+  await base2.append({ entry: ['shared-new3', 'shared-new3 added multiple times by 2 (2)'] })
+
+  await confirm(base1, base2)
+  const newBee = base2.view.bee.snapshot()
+  // Here we pass refSnap, which is closed. This triggers an error when opening
+  // the stream, which is passed on to streamx's destroy method, but never reaches
+  // afterDestroy, thus is never emitted.
+  const stream = new BeeDiffStream(refSnap, newBee)
+  stream.on('error', () => t.pass('successfully received error'))
+  streamToArray(stream)
+})
