@@ -6,7 +6,7 @@ const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
-const { create, sync } = require('./helpers')
+const { sync, streamToArray, setup, encodedOpen } = require('./helpers')
 
 test('no changes -> empty diff', async t => {
   const bases = await setup(t)
@@ -633,83 +633,4 @@ async function confirm (base1, base2) {
   await base1.append(null)
   await base2.append(null)
   await sync(base1, base2)
-}
-
-async function setup (t, { openFun = open } = {}) {
-  // 2 writers, 1 read-only
-  const bases = await create(3, (...args) => apply(t, ...args), openFun)
-  const [base1, base2] = bases
-
-  await base1.append({
-    add: base2.local.key.toString('hex')
-  })
-
-  await sync(...bases)
-  await base1.append(null)
-  await sync(...bases)
-
-  return bases
-}
-
-class SimpleView {
-  constructor (base, core, opts = {}) {
-    this.base = base
-    this.bee = new Hyperbee(core, { extension: false, keyEncoding: 'binary', valueEncoding: 'binary', ...opts })
-  }
-
-  async ready () {
-    await this.bee.ready()
-  }
-
-  async _applyMessage (key, value) {
-    await this.bee.put(key, value, { update: false })
-  }
-
-  async getMessage (key) {
-    return await this.bee.get(key, { update: false })
-  }
-}
-
-function open (linStore, base) {
-  const core = linStore.get('simple-bee')
-
-  const view = new SimpleView(base, core)
-  return view
-}
-
-function encodedOpen (linStore, base) {
-  return new SimpleView(base, linStore.get('simple-bee'), {
-    keyEncoding: 'utf-8',
-    valueEncoding: 'json'
-  })
-}
-
-async function apply (t, batch, simpleView, base) {
-  for (const { value } of batch) {
-    if (value === null) continue
-    if (value.add) {
-      await base.system.addWriter(Buffer.from(value.add, 'hex'))
-    } else {
-      try {
-        if (value.delete) {
-          await simpleView.bee.del(value.delete, { update: false })
-        } else if (value.entry) {
-          await simpleView._applyMessage(...value.entry)
-        } else {
-          throw new Error('unexpected value:', value)
-        }
-      } catch (e) {
-        console.error(e)
-        t.fail()
-      }
-    }
-  }
-}
-
-async function streamToArray (stream) {
-  const res = []
-  for await (const entry of stream) {
-    res.push(entry)
-  }
-  return res
 }
