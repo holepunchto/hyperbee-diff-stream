@@ -11,13 +11,14 @@ Even if several peers (including you in your local fork) made a lot of changes t
 
 ## Usage
 See [example.js](./example.js)
+
 ## API
 
 #### `const diffStream = new BeeDiffStream(leftSnapshot, rightSnapshot, [options])`
 
 Make a new `BeeDiffStream` instance, which is the stream of changes to get from the state of `leftSnapshot` to that of `rightSnapshot`.
 
-The changes are ordered by key.
+The stream is ordered by key.
 
 `leftSnapshot` and `rightSnapshot` should be snapshots (or checkouts) of the same hyperbee. The hyperbee can be an autobase view.
 
