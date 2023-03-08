@@ -6,7 +6,7 @@ const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
-const { sync, streamToArray, setup, encodedOpen } = require('./helpers')
+const { sync, streamToArray, setup, encodedOpen, confirm } = require('./helpers')
 
 test('no changes -> empty diff', async t => {
   const bases = await setup(t)
@@ -624,13 +624,3 @@ test('passed snapshots close when the beeDiffStream is destroyed', async t => {
   })
   diffStream.destroy()
 })
-
-async function confirm (base1, base2) {
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
-}

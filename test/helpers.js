@@ -10,7 +10,8 @@ module.exports = {
   open,
   encodedOpen,
   setup,
-  streamToArray
+  streamToArray,
+  confirm
 }
 
 async function create (n, apply, open) {
@@ -129,4 +130,14 @@ async function streamToArray (stream) {
     res.push(entry)
   }
   return res
+}
+
+async function confirm (base1, base2) {
+  await sync(base1, base2)
+  await base1.append(null)
+  await base2.append(null)
+  await sync(base1, base2)
+  await base1.append(null)
+  await base2.append(null)
+  await sync(base1, base2)
 }
