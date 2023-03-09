@@ -27,6 +27,6 @@
   },
   "dependencies": {
     "b4a": "^1.6.1",
-    "sorted-union-stream": "^3.2.2"
+    "sorted-union-stream": "^3.2.3"
   }
 }
