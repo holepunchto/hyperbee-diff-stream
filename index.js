@@ -80,14 +80,11 @@ class BeeDiffStream extends Union {
     this._rightSnapshot = rightSnapshot
   }
 
-  async _destroy (cb) {
-    try {
-      await Promise.all([this._leftSnapshot.close(), this._rightSnapshot.close()])
-    } catch (e) {
-      cb(e)
-      return
-    }
-    super._destroy(cb)
+  _destroy (cb) {
+    super._destroy((err) => {
+      const onclose = () => cb(err)
+      Promise.all([this._leftSnapshot.close(), this._rightSnapshot.close()]).then(onclose, cb)
+    })
   }
 }
 
