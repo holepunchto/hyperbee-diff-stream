@@ -1,8 +1,4 @@
 const test = require('brittle')
-const Hyperbee = require('hyperbee')
-const ram = require('random-access-memory')
-const Hypercore = require('hypercore')
-const { performance } = require('perf_hooks')
 
 const BeeDiffStream = require('../index')
 const { streamToArray, setup, encodedOpen, confirm } = require('./helpers')
@@ -142,9 +138,16 @@ function diffsToValues (diffs) {
   return [newState, oldState]
 }
 
+// Test on scaling. Takes longer, so not run by default
+/*
+const Hyperbee = require('hyperbee')
+const ram = require('random-access-memory')
+const Hypercore = require('hypercore')
+const { performance } = require('perf_hooks')
+
 test('low overhead compared to normal diffStream if applied to bee', async t => {
   const maxOverheadFactor = 2
-  const magnitudes = [50] // [1, 10, 100, 1000]
+  const magnitudes = [25, 50, 100, 1000]
 
   const propInitEntries = 10
   const propTotalEntries = 100
@@ -192,3 +195,4 @@ test('low overhead compared to normal diffStream if applied to bee', async t => 
     t.is(ownTime < beeTime * maxOverheadFactor, true)
   }
 })
+*/
