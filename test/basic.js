@@ -719,16 +719,16 @@ test.solo('emits errors thrown during opening of its diffStreams', async t => {
   const bases = await setup(t, { openFun: encodedOpen })
   const [base1, base2] = bases
 
-  const baselineSnap = base2.view.bee.snapshot()
   await base2.append({ entry: ['2-3', '2-3 added then deleted by 2'] })
 
   // State just before reconnecting with base1
   const refSnap = base2.view.bee.snapshot()
+  await refSnap.close()
 
   // Error triggers because of consuming a closed stream, but not always.
   // This seems to reproduce it reliably
   // It's fixed by passing in refSnap.snapshot() here, instead of refSnap itself
-  await streamToArray(new BeeDiffStream(baselineSnap, refSnap))
+  // await streamToArray(new BeeDiffStream(baselineSnap, refSnap))
   await base2.append({ entry: ['shared-new3', 'shared-new3 added multiple times by 2 (2)'] })
 
   await confirm(base1, base2)
