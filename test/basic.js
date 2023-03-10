@@ -367,9 +367,6 @@ test('complex autobase linearisation with truncates and deletes', async t => {
   t.alike(diffsBee1.map(({ left }) => left.key.toString()), ['2-1', '2-2'])
   t.alike(diffsBee1.map(({ right }) => right), [null, null])
 
-  // TODO: this test sometimes fails (non-deterministically) with
-  // indexedLength of newBee2 only 8 instead of 9
-  // console.log('bee1: ', newBee1.feed.indexedLength, 'bee2 indexedL: ', newBee2.feed.indexedLength)
   t.is(newBee2.feed.indexedLength, 9) // Sanity check
   t.is(newBee2.version, 9) // Sanity check
   t.alike(diffsBee2.map(({ left }) => left?.key.toString()), [undefined, '1-4'])
@@ -623,4 +620,55 @@ test('passed snapshots close when the beeDiffStream is destroyed', async t => {
     t.is(newBee.core.closed, true)
   })
   diffStream.destroy()
+})
+
+test('correctly handles diff between snapshots older than the indexedLength (autobase view)', async t => {
+  const bases = await setup(t, { openFun: encodedOpen })
+
+  const [base1, base2] = bases
+  const bee = base1.view.bee
+
+  await base1.append({ entry: ['1-1', { name: 'entry 1-1' }] })
+  await base1.append({ entry: ['1-2', { name: 'entry 1-2' }] })
+  await base1.append({ entry: ['1-3', { name: 'entry 1-3' }] })
+  await base1.append({ entry: ['1-4', { name: 'entry 1-4' }] })
+
+  await confirm(base1, base2)
+  const oldBee = bee.checkout(2) // Post 1-1 added
+  const newBee = bee.checkout(4) // Post 1-3 added
+
+  // Sanity check
+  t.is(oldBee.core.indexedLength, 5)
+  t.is(oldBee.core.indexedLength, newBee.core.indexedLength)
+
+  const diffs = await streamToArray(new BeeDiffStream(oldBee, newBee))
+  t.alike(diffs.map(({ left }) => left?.key.toString()), ['1-2', '1-3'])
+  t.alike(diffs.map(({ right }) => right?.key.toString()), [undefined, undefined]) // deletions
+})
+
+test('correctly handles diff between snapshots older than the indexedLength (normal bee)', async function (t) {
+  const bee = new Hyperbee(new Hypercore(ram))
+  await bee.put('e1', 'entry1')
+
+  // v2
+  await bee.put('e2', 'entry2')
+  await bee.put('e3', 'entry3')
+  await bee.del('e2')
+  await bee.del('e1')
+  // v6
+
+  await bee.put('e4', 'entry4')
+  await bee.put('e5', 'entry5')
+  // v8
+
+  const oldSnap = bee.checkout(2)
+  const newSnap = bee.checkout(6)
+
+  const directDiffs = await streamToArray(newSnap.createDiffStream(oldSnap.version))
+  const diffs = await streamToArray(new BeeDiffStream(oldSnap, newSnap))
+
+  t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
+  t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
+
+  t.alike(directDiffs, diffs)
 })
