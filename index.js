@@ -68,6 +68,11 @@ class BeeDiffStream extends Union {
       ? Math.min(leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength)
       : leftSnapshot.version // A normal bee doesn't have indexedLength (becomes a normal diffStream)
 
+    // TODO: consider optimisation for case where the version of both streams
+    // is lower than the sharedIndexedL (in which case only the changes from
+    // the oldest version to the newest must be calculated, on the newest stream)
+    // --currently it redundantly calcs diffStreams for both and filters out the
+    //   shared entries
     const toUndoDiffStream = leftSnapshot.createDiffStream(sharedIndexedL, opts)
     const toApplyDiffStream = rightSnapshot.createDiffStream(sharedIndexedL, opts)
 
