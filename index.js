@@ -63,10 +63,14 @@ class BeeDiffStream extends Union {
     // Binary valueEncoding for easier comparison later
     opts = { ...opts, valueEncoding: 'binary' }
 
+    if (leftSnapshot.core.indexedLength === undefined) {
+      throw new Error('Incompatible Hypercore version--must have indexedLength property')
+    }
+
     // We know that everything indexed in both snapshots is shared
-    const sharedIndexedL = leftSnapshot.core.isAutobase
-      ? Math.min(leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength)
-      : leftSnapshot.version // A normal bee doesn't have indexedLength (becomes a normal diffStream)
+    const sharedIndexedL = Math.min(
+      leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength
+    )
 
     // TODO: consider optimisation for case where the version of both streams
     // is lower than the sharedIndexedL (in which case only the changes from
