@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "b4a": "^1.6.1",
+    "codecs": "^3.0.0",
     "sorted-union-stream": "^3.2.3"
   }
 }
