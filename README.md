@@ -9,6 +9,9 @@ Even if several peers (including you in your local fork) made a lot of changes t
 ## Install
 `npm i hyperbee-diff-stream`
 
+## Compatibility
+Uses features introduced in Hyperbee ^2.5.0 and Hypercore ^10.8.1
+
 ## Usage
 See [example.js](./example.js)
 
