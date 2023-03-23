@@ -8,10 +8,6 @@ test('compat - watch works with autobase bees', async function (t) {
   const bases = await setup(t)
   const [base1, base2] = bases
 
-  // Make base2 writer too
-  await base1.append({ add: base2.local.key.toString('hex') })
-  await confirm(base1, base2)
-
   const bee = base1.view.bee // bee based on autobase linearised core
 
   const partialWatcher = bee.watch()
