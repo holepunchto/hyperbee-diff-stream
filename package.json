@@ -18,10 +18,10 @@
   "author": "H. Degroote",
   "license": "Apache-2.0",
   "devDependencies": {
-    "autobase-next": "~0.0.1",
+    "autobase-next": "~0.0.2",
     "brittle": "^3.1.1",
     "corestore": "^6.5.0",
-    "hyperbee": "^2.5.0",
+    "hyperbee": "github:holepunchto/hyperbee#watch-change-event-2",
     "random-access-memory": "^6.1.0",
     "standard": "^17.0.0"
   },
