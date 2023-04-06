@@ -734,3 +734,24 @@ test('works with JSON key encoding and ranges', async t => {
   t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 3 }, { key, seq: 4 }])
   t.alike(diffs.map(({ right }) => right), [null, null])
 })
+
+test('does not close snapshots if option set', async function (t) {
+  const bee = new Hyperbee(new Hypercore(ram))
+
+  await bee.put('e1', 'entry1')
+  const oldSnap = bee.snapshot()
+  const oldSnapRef = bee.snapshot()
+
+  await bee.put('e2', 'entry2')
+  const newSnap = bee.snapshot()
+  const newSnapRef = bee.snapshot()
+
+  await streamToArray(new BeeDiffStream(oldSnap, newSnap, { closeSnapshots: false }))
+  t.is(oldSnap.core.closed, false)
+  t.is(newSnap.core.closed, false)
+
+  // default: true
+  await streamToArray(new BeeDiffStream(oldSnapRef, newSnapRef))
+  t.is(oldSnapRef.core.closed, true)
+  t.is(newSnapRef.core.closed, true)
+})
