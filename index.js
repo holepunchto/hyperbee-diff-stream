@@ -85,6 +85,8 @@ class BeeDiffStream extends Union {
       map: createUnionMap(valueEncoding)
     })
 
+    this.manageSnapshots = !(opts.manageSnapshots === false)
+
     this._leftSnapshot = leftSnapshot
     this._rightSnapshot = rightSnapshot
   }
@@ -92,7 +94,10 @@ class BeeDiffStream extends Union {
   _destroy (cb) {
     super._destroy((err) => {
       const onclose = () => cb(err)
-      Promise.all([this._leftSnapshot.close(), this._rightSnapshot.close()]).then(onclose, cb)
+      const proms = this.manageSnapshots
+        ? [this._leftSnapshot.close(), this._rightSnapshot.close()]
+        : []
+      Promise.all(proms).then(onclose, cb)
     })
   }
 }
