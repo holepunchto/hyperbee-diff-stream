@@ -25,15 +25,15 @@ function unionCompare (e1, e2) {
   throw new Error('Only string or buffer supported')
 }
 
-function decodeValue (diffEntry, valueEncoding) {
-  if (!valueEncoding || !diffEntry) return diffEntry
-
-  diffEntry.value = valueEncoding.decode(diffEntry.value)
+function decodeEntry (diffEntry, keyEncoding, valueEncoding) {
+  if (!diffEntry) return diffEntry
+  if (keyEncoding) diffEntry.key = keyEncoding.decode(diffEntry.key)
+  if (valueEncoding) diffEntry.value = valueEncoding.decode(diffEntry.value)
   return diffEntry
 }
 
-function createUnionMap (valueEncoding) {
-  const decode = diffEntry => decodeValue(diffEntry, valueEncoding)
+function createUnionMap (keyEncoding, valueEncoding) {
+  const decode = diffEntry => decodeEntry(diffEntry, keyEncoding, valueEncoding)
 
   return function unionMap (undoDiffEntry, applyDiffEntry) {
     if (undoDiffEntry === null) {
@@ -57,11 +57,22 @@ function createUnionMap (valueEncoding) {
   }
 }
 
+function encodeKey (enc, key) {
+  return key ? (enc ? enc.encode(key) : key) : null
+}
+
 class BeeDiffStream extends Union {
   constructor (leftSnapshot, rightSnapshot, opts = {}) {
     const valueEncoding = opts.valueEncoding ? codecs(opts.valueEncoding) : leftSnapshot.valueEncoding
-    // Binary valueEncoding for easier comparison later
-    opts = { ...opts, valueEncoding: 'binary' }
+    const keyEncoding = opts.keyEncoding ? codecs(opts.keyEncoding) : leftSnapshot.keyEncoding
+
+    const gt = encodeKey(keyEncoding, opts.gt)
+    const gte = encodeKey(keyEncoding, opts.gte)
+    const lt = encodeKey(keyEncoding, opts.lt)
+    const lte = encodeKey(keyEncoding, opts.lte)
+
+    // Binary encodings for easier comparison later
+    opts = { ...opts, gt, gte, lt, lte, valueEncoding: 'binary', keyEncoding: 'binary' }
 
     if (leftSnapshot.core.indexedLength === undefined) {
       throw new Error('Incompatible Hypercore version--must have indexedLength property')
@@ -82,7 +93,7 @@ class BeeDiffStream extends Union {
 
     super(toUndoDiffStream, toApplyDiffStream, {
       compare: unionCompare,
-      map: createUnionMap(valueEncoding)
+      map: createUnionMap(keyEncoding, valueEncoding)
     })
 
     this._leftSnapshot = leftSnapshot
