@@ -685,7 +685,6 @@ test('works with JSON key encoding', async t => {
   await sync(...bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
-  const origIndexedL = readOnlyBase.view.bee.core.indexedLength
 
   await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
   await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
@@ -715,7 +714,6 @@ test('works with JSON key encoding and ranges', async t => {
   await sync(...bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
-  const origIndexedL = readOnlyBase.view.bee.core.indexedLength
 
   await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
   await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
