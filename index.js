@@ -17,12 +17,7 @@ function unionCompare (e1, e2) {
   const k1 = getKey(e1)
   const k2 = getKey(e2)
 
-  if (b4a.isBuffer(k1)) return b4a.compare(k1, k2)
-  if (typeof k1 === 'string') {
-    return k1 < k2 ? -1 : k1 > k2 ? 1 : 0
-  }
-
-  throw new Error('Only string or buffer supported')
+  return b4a.compare(k1, k2)
 }
 
 function decodeEntry (diffEntry, keyEncoding, valueEncoding) {
