@@ -684,7 +684,7 @@ test('does not close snapshots if option set', async function (t) {
   const newSnap = bee.snapshot()
   const newSnapRef = bee.snapshot()
 
-  await streamToArray(new BeeDiffStream(oldSnap, newSnap, { manageSnapshots: false }))
+  await streamToArray(new BeeDiffStream(oldSnap, newSnap, { closeSnapshots: false }))
   t.is(oldSnap.core.closed, false)
   t.is(newSnap.core.closed, false)
 
