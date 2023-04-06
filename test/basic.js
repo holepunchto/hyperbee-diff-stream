@@ -699,7 +699,6 @@ test('works with JSON key encoding', async t => {
 
   const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
 
-  // console.log(diffs.map(({ left }) => left.key))
   t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 2 }, { key, seq: 3 }, { key, seq: 4 }])
   t.alike(diffs.map(({ right }) => right), [null, null, null])
 })
@@ -730,7 +729,6 @@ test('works with JSON key encoding and ranges', async t => {
 
   const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { gte: { key, seq: 3 } }))
 
-  // console.log(diffs.map(({ left }) => left.key))
   t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 3 }, { key, seq: 4 }])
   t.alike(diffs.map(({ right }) => right), [null, null])
 })
