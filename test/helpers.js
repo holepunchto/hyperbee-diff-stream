@@ -9,6 +9,7 @@ module.exports = {
   sync,
   open,
   encodedOpen,
+  jsonKeyedOpen,
   setup,
   streamToArray,
   confirm
@@ -140,4 +141,11 @@ async function confirm (base1, base2) {
   await base1.append(null)
   await base2.append(null)
   await sync(base1, base2)
+}
+
+function jsonKeyedOpen (linStore, base) {
+  return new SimpleView(base, linStore.get('simple-bee'), {
+    keyEncoding: 'json',
+    valueEncoding: 'json'
+  })
 }

@@ -6,7 +6,7 @@ const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
-const { sync, streamToArray, setup, encodedOpen, confirm } = require('./helpers')
+const { sync, streamToArray, setup, encodedOpen, jsonKeyedOpen, confirm } = require('./helpers')
 
 test('no changes -> empty diff', async t => {
   const bases = await setup(t)
@@ -671,4 +671,66 @@ test('correctly handles diff between snapshots older than the indexedLength (nor
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
   t.alike(directDiffs, diffs)
+})
+
+test('works with JSON key encoding', async t => {
+  const bases = await setup(t, { openFun: jsonKeyedOpen })
+  const [base1, base2, readOnlyBase] = bases
+
+  const key = '0'.repeat(64)
+
+  await base1.append({ entry: [{ key, seq: 0 }, '1-entry1'] })
+  await confirm(base1, base2)
+  await base1.append({ entry: [{ key, seq: 1 }, '1-entry2'] })
+  await sync(...bases)
+
+  const origBee = readOnlyBase.view.bee.snapshot()
+  const origIndexedL = readOnlyBase.view.bee.core.indexedLength
+
+  await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
+  await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
+  await confirm(base1, base2)
+
+  // New Fork
+  await base1.append({ entry: [{ key, seq: 4 }, '1-entry5'] })
+  await sync(base1, readOnlyBase)
+
+  const newBee = readOnlyBase.view.bee.snapshot()
+
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+
+  // console.log(diffs.map(({ left }) => left.key))
+  t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 2 }, { key, seq: 3 }, { key, seq: 4 }])
+  t.alike(diffs.map(({ right }) => right), [null, null, null])
+})
+
+test('works with JSON key encoding and ranges', async t => {
+  const bases = await setup(t, { openFun: jsonKeyedOpen })
+  const [base1, base2, readOnlyBase] = bases
+
+  const key = '0'.repeat(64)
+
+  await base1.append({ entry: [{ key, seq: 0 }, '1-entry1'] })
+  await confirm(base1, base2)
+  await base1.append({ entry: [{ key, seq: 1 }, '1-entry2'] })
+  await sync(...bases)
+
+  const origBee = readOnlyBase.view.bee.snapshot()
+  const origIndexedL = readOnlyBase.view.bee.core.indexedLength
+
+  await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
+  await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
+  await confirm(base1, base2)
+
+  // New Fork
+  await base1.append({ entry: [{ key, seq: 4 }, '1-entry5'] })
+  await sync(base1, readOnlyBase)
+
+  const newBee = readOnlyBase.view.bee.snapshot()
+
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { gte: { key, seq: 3 } }))
+
+  // console.log(diffs.map(({ left }) => left.key))
+  t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 3 }, { key, seq: 4 }])
+  t.alike(diffs.map(({ right }) => right), [null, null])
 })
