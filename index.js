@@ -84,7 +84,7 @@ class BeeDiffStream extends Union {
     // --currently it redundantly calcs diffStreams for both and filters out the
     //   shared entries
     const toUndoDiffStream = leftSnapshot.createDiffStream(sharedIndexedL, opts)
-    const toApplyDiffStream = rightSnapshot.createDiffStream(sharedIndexedL, opts)
+    const toApplyDiffStream = leftSnapshot.createDiffStream(sharedIndexedL, opts)
 
     super(toUndoDiffStream, toApplyDiffStream, {
       compare: unionCompare,
