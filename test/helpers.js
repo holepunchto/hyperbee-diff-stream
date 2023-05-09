@@ -2,7 +2,7 @@ const ram = require('random-access-memory')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
 
-const Autobase = require('autobase-next')
+const Autobase = require('@holepunchto/autobase-next')
 
 module.exports = {
   create,
