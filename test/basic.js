@@ -551,8 +551,8 @@ test('can pass in key- or valueEncoding', async function (t) {
   await base1.append({ entry: ['1-1', '1-entry1'] })
 
   t.alike((await bee.get('1-1')).key, b4a.from('1-1')) // Sanity check that encoding is binary
-  const keyTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { keyEncoding: 'utf-8' }))
-  const valueTextDiffs = await streamToArray(new BeeDiffStream(origBee, bee.snapshot(), { valueEncoding: 'utf-8' }))
+  const keyTextDiffs = await streamToArray(new BeeDiffStream(origBee.snapshot(), bee.snapshot(), { keyEncoding: 'utf-8' }))
+  const valueTextDiffs = await streamToArray(new BeeDiffStream(origBee.snapshot(), bee.snapshot(), { valueEncoding: 'utf-8' }))
 
   t.alike(keyTextDiffs, [{ left: { seq: 1, key: '1-1', value: b4a.from('1-entry1') }, right: null }])
   t.alike(valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
@@ -591,11 +591,11 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1))
-  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2))
+  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee.snapshot(), newBee1.snapshot()))
+  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2.snapshot(), newBee2.snapshot()))
 
-  const reverseDiffsBee1 = await streamToArray(new BeeDiffStream(newBee1, origBee))
-  const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2, origBee2))
+  const reverseDiffsBee1 = await streamToArray(new BeeDiffStream(newBee1.snapshot(), origBee.snapshot()))
+  const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2.snapshot(), origBee2.snapshot()))
 
   // Check they are indeed reversed (so left<->right)
   t.is(diffsBee1.length, 4) // sanity check
