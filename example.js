@@ -1,7 +1,7 @@
 const BeeDiffStream = require('.')
 const Hyperbee = require('hyperbee')
 const ram = require('random-access-memory')
-const Autobase = require('autobase-next')
+const Autobase = require('@holepunchto/autobase')
 const Corestore = require('corestore')
 
 async function main () {
