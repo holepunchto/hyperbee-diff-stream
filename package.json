@@ -1,5 +1,4 @@
 {
-  "private": true,
   "name": "@holepunchto/hyperbee-diff-stream",
   "version": "1.0.0",
   "description": "Get the diff stream between two versions of a hyperbee (supports autobase views)",
