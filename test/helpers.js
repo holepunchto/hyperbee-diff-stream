@@ -1,8 +1,11 @@
 const ram = require('random-access-memory')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
+const helpers = require('autobase-test-helpers')
+const Autobase = require('autobase')
 
-const Autobase = require('@holepunchto/autobase')
+const sync = helpers.sync
+const DEBUG_LOG = false
 
 module.exports = {
   create,
@@ -12,22 +15,59 @@ module.exports = {
   jsonKeyedOpen,
   setup,
   streamToArray,
-  confirm
+  confirm,
+  replicateAndSync: helpers.replicateAndSync
 }
 
-async function create (n, apply, open) {
-  const opts = { apply, open, valueEncoding: 'json' }
-  const bases = [new Autobase(new Corestore(ram, { primaryKey: Buffer.alloc(32).fill(0) }), null, opts)]
-  await bases[0].ready()
-  if (n === 1) return bases
-  for (let i = 1; i < n; i++) {
-    const base = new Autobase(new Corestore(ram, { primaryKey: Buffer.alloc(32).fill(i) }), bases[0].local.key, opts)
-    await base.ready()
-    bases.push(base)
+async function createBase (store, key, apply, open, t, opts = {}) {
+  const moreOpts = {
+    apply,
+    open,
+    close: undefined,
+    valueEncoding: 'json',
+    ...opts
   }
-  return bases
+
+  const base = new Autobase(store.session(), key, moreOpts)
+  await base.ready()
+
+  t.teardown(() => base.close(), { order: 1 })
+
+  return base
 }
 
+async function createStores (n, t) {
+  const stores = []
+  for (let i = 0; i < n; i++) {
+    const storage = ram.reusable()
+    const primaryKey = Buffer.alloc(32, i)
+    stores.push(new Corestore(storage, { primaryKey }))
+  }
+
+  t.teardown(() => Promise.all(stores.map(s => s.close())), { order: 2 })
+
+  return stores
+}
+
+async function create (n, apply, open, t) {
+  t.teardown(() => console.log('tearing down'))
+  const stores = await createStores(n, t)
+  const bases = [await createBase(stores[0], null, apply, open, t)]
+  bases.map(b => b.on('error:', e => console.error('base error', e)))
+
+  if (n === 1) return { stores, bases }
+
+  for (let i = 1; i < n; i++) {
+    bases.push(await createBase(stores[i], bases[0].local.key, apply, open, t))
+  }
+
+  return bases /* {
+    stores,
+    bases
+  } */
+}
+
+/*
 async function sync (...bases) {
   const streams = []
 
@@ -53,19 +93,33 @@ async function sync (...bases) {
     stream.destroy()
   }
 }
+*/
+
+async function addWriter (base, add, indexer = true) {
+  return base.append({ add: add.local.key.toString('hex'), indexer })
+}
+
+async function addWriterAndSync (base, add, indexer = true, bases = [base, add]) {
+  await addWriter(base, add, indexer)
+  await helpers.replicateAndSync(bases)
+  await base.ack()
+  await helpers.replicateAndSync(bases)
+}
 
 async function setup (t, { openFun = open } = {}) {
   // 2 writers, 1 read-only
-  const bases = await create(3, (...args) => apply(t, ...args), openFun)
+  const bases = await create(3, (...args) => apply(t, ...args), openFun, t)
   const [base1, base2] = bases
 
-  await base1.append({
+  await addWriterAndSync(base1, base2, true)
+  await confirm(bases)
+  /* await base1.append({
     add: base2.local.key.toString('hex')
-  })
+  }) */
 
-  await sync(...bases)
+  /* await (bases)
   await base1.append(null)
-  await sync(...bases)
+  await sync(bases) */
 
   return bases
 }
@@ -104,10 +158,18 @@ function encodedOpen (linStore, base) {
 }
 
 async function apply (t, batch, simpleView, base) {
+  // console.log('applying batch', batch)
+  // console.log('applying on t', t)
+  // console.log('batch', batch)
+  // console.log('base')
+  // console.log(base)
   for (const { value } of batch) {
+    if (DEBUG_LOG) console.debug('applying', value)
     if (value === null) continue
     if (value.add) {
-      await base.system.addWriter(Buffer.from(value.add, 'hex'))
+      // console.log('in apply adding writer', value)
+      await base.addWriter(Buffer.from(value.add, 'hex'), { indexer: value.indexer })
+      console.log('added writer')
     } else {
       try {
         if (value.delete) {
@@ -133,15 +195,43 @@ async function streamToArray (stream) {
   return res
 }
 
-async function confirm (base1, base2) {
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
+async function confirm (bases, options = {}) {
+  await helpers.replicateAndSync(bases)
+
+  for (let i = 0; i < 2; i++) {
+    const writers = bases.filter(b => !!b.localWriter)
+    const maj = options.majority || (Math.floor(writers.length / 2) + 1)
+    for (let j = 0; j < maj; j++) {
+      if (!writers[j].writable) continue
+
+      await writers[j].append(null)
+      await helpers.replicateAndSync(bases)
+    }
+  }
+
+  await helpers.replicateAndSync(bases)
 }
+
+/*
+async function confirm (bases, options = {}) {
+  console.log('replicate syncing')
+  await helpers.replicateAndSync(bases)
+  console.log('replicatesynced')
+  for (let i = 0; i < 2; i++) {
+    const writers = bases.filter(b => !!b.localWriter)
+    const maj = options.majority || (Math.floor(writers.length / 2) + 1)
+    for (let j = 0; j < maj; j++) {
+      if (!writers[j].writable) continue
+
+      await writers[j].append(null)
+      console.log(i, 'replicateSync')
+      await helpers.replicateAndSync(bases)
+    }
+  }
+
+  await helpers.replicateAndSync(bases)
+}
+*/
 
 function jsonKeyedOpen (linStore, base) {
   return new SimpleView(base, linStore.get('simple-bee'), {

@@ -19,7 +19,7 @@ test('complex scenario with many diff cases', async t => {
   }
   await Promise.all(baselineProms)
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // Corresponds to the state just before going offline
   const baselineBee = base2.view.bee.snapshot()
@@ -104,7 +104,7 @@ test('complex scenario with many diff cases', async t => {
   await base2.append({ entry: ['shared-new3', 'shared-new3 added multiple times by 2 (2)'] })
 
   // The peers sync and the autobases are linearised
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   const newBee = base2.view.bee.snapshot()
   const [newState, refState] = diffsToValues(
     await streamToArray(new BeeDiffStream(refBee, newBee))
