@@ -59,39 +59,8 @@ async function create (n, apply, open, t) {
     bases.push(await createBase(stores[i], bases[0].local.key, apply, open, t))
   }
 
-  return bases /* {
-    stores,
-    bases
-  } */
+  return bases
 }
-
-/*
-async function sync (...bases) {
-  const streams = []
-
-  for (const a of bases) {
-    for (const b of bases) {
-      if (a === b) continue
-      const s1 = a.store.replicate(true)
-      const s2 = b.store.replicate(false)
-
-      s1.on('error', () => {})
-      s2.on('error', () => {})
-
-      s1.pipe(s2).pipe(s1)
-
-      streams.push(s1)
-      streams.push(s2)
-    }
-  }
-
-  await Promise.all(bases.map(b => b.update({ wait: true })))
-
-  for (const stream of streams) {
-    stream.destroy()
-  }
-}
-*/
 
 async function addWriter (base, add, indexer = true) {
   return base.append({ add: add.local.key.toString('hex'), indexer })
@@ -111,13 +80,6 @@ async function setup (t, { openFun = open } = {}) {
 
   await addWriterAndSync(base1, base2, true)
   await confirm(bases)
-  /* await base1.append({
-    add: base2.local.key.toString('hex')
-  }) */
-
-  /* await (bases)
-  await base1.append(null)
-  await sync(bases) */
 
   return bases
 }
