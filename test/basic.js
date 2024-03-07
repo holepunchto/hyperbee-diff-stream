@@ -25,9 +25,7 @@ test('index moved ahead', async t => {
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
 
-  console.log('confirming bases')
   await confirm(bases)
-  console.log('confirmed bases')
 
   const newBee = base1.view.bee.snapshot()
 
@@ -44,19 +42,13 @@ test('new bee forked, but no old fork nor changes to index', async t => {
 
   const origBee = base1.view.bee.snapshot()
 
-  console.log('init length', base1.view.bee.core.length, base1.view.bee.core.indexedLength)
   await base1.append({ entry: ['1-1', '1-entry1'] })
-  console.log('post append length', base1.view.bee.core.length, base1.view.bee.core.indexedLength)
 
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  console.log('post append length', base1.view.bee.core.length, base1.view.bee.core.indexedLength)
 
   await new Promise(resolve => setTimeout(resolve, 500))
 
   const newBee = base1.view.bee.snapshot()
-
-  console.log('orig bee entries:', await streamToArray(origBee.createReadStream()))
-  console.log('new bee entries:', await streamToArray(newBee.createReadStream()))
 
   t.is(newBee.core.indexedLength, 0) // Sanity check
 
@@ -95,9 +87,7 @@ test('both new index and new fork--old had up to date index', async t => {
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  console.log('confirming')
   await confirm([base1, base2])
-  console.log('sync')
   await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
@@ -214,16 +204,14 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['1-1', undefined, undefined])
 })
 
-test.solo('new snapshot has same final value as old fork but through different path ->no change', async t => {
+test('new snapshot has same final value as old fork but through different path ->no change', async t => {
   const bases = await setup(t, { openFun: encodedOpen })
   const [base1, base2] = bases
 
   await base1.append({ entry: ['shared', 'shared-entry'] })
   await base1.append({ entry: ['to-be-deleted', 'shared-delete'] })
 
-  console.log('base1 indexed:', base1.view.bee.core.indexedLength)
   await confirm([base1, base2])
-  console.log('base1 indexed confirm1', base1.view.bee.core.indexedLength)
 
   // Both bases will modify shared to 'change' and will delete 'to-be-deleted'
   // but through a different series of operations
@@ -234,10 +222,8 @@ test.solo('new snapshot has same final value as old fork but through different p
   await base1.append({ entry: ['shared', 'change'] })
   await base1.append({ entry: ['to-be-deleted', 'about to be deleted'] })
   await base1.append({ delete: 'to-be-deleted' })
-  console.log('base1 indexed added', base1.view.bee.core.indexedLength)
 
   const origBee = base1.view.bee.snapshot()
-  console.log('origBee indexedL created', origBee.core.indexedLength)
 
   // Normally base1 would now create the diffStream and yield the changes to this point
   // So reaching here, it has yielded 'change' and the deletion already
@@ -251,8 +237,6 @@ test.solo('new snapshot has same final value as old fork but through different p
   await base2.append({ delete: 'to-be-deleted' })
 
   await confirm([base1, base2])
-  console.log('base1 indexed post confirm', base1.view.bee.core.indexedLength)
-  console.log('snapshot post confirm', origBee.core.indexedLength)
 
   const newBee = base1.view.bee.snapshot() // Need only yield 'something->else' as change
 
@@ -623,7 +607,6 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2.snapshot(), origBee2.snapshot()))
 
   // Check they are indeed reversed (so left<->right)
-  console.log(diffsBee1)
   t.is(diffsBee1.length, 4, 'sanity check')
   t.alike(diffsBee1, reverseDiffsBee1.map(({ left, right }) => { return { left: right, right: left } }))
 
@@ -640,7 +623,7 @@ test('passed snapshots close when the beeDiffStream is destroyed', async t => {
   await base1.append({ entry: ['1-1', '1-entry1'] })
   const newBee = base1.view.bee.snapshot()
 
-  const diffStream = new BeeDiffStream(origBee, newBee, { closeSnapshots: false })
+  const diffStream = new BeeDiffStream(origBee, newBee)
   diffStream.on('close', () => {
     t.is(origBee.core.closed, true)
     t.is(newBee.core.closed, true)

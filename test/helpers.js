@@ -50,10 +50,8 @@ async function createStores (n, t) {
 }
 
 async function create (n, apply, open, t) {
-  t.teardown(() => console.log('tearing down'))
   const stores = await createStores(n, t)
   const bases = [await createBase(stores[0], null, apply, open, t)]
-  bases.map(b => b.on('error:', e => console.error('base error', e)))
 
   if (n === 1) return { stores, bases }
 
@@ -158,18 +156,11 @@ function encodedOpen (linStore, base) {
 }
 
 async function apply (t, batch, simpleView, base) {
-  // console.log('applying batch', batch)
-  // console.log('applying on t', t)
-  // console.log('batch', batch)
-  // console.log('base')
-  // console.log(base)
   for (const { value } of batch) {
     if (DEBUG_LOG) console.debug('applying', value)
     if (value === null) continue
     if (value.add) {
-      // console.log('in apply adding writer', value)
       await base.addWriter(Buffer.from(value.add, 'hex'), { indexer: value.indexer })
-      console.log('added writer')
     } else {
       try {
         if (value.delete) {
@@ -211,27 +202,6 @@ async function confirm (bases, options = {}) {
 
   await helpers.replicateAndSync(bases)
 }
-
-/*
-async function confirm (bases, options = {}) {
-  console.log('replicate syncing')
-  await helpers.replicateAndSync(bases)
-  console.log('replicatesynced')
-  for (let i = 0; i < 2; i++) {
-    const writers = bases.filter(b => !!b.localWriter)
-    const maj = options.majority || (Math.floor(writers.length / 2) + 1)
-    for (let j = 0; j < maj; j++) {
-      if (!writers[j].writable) continue
-
-      await writers[j].append(null)
-      console.log(i, 'replicateSync')
-      await helpers.replicateAndSync(bases)
-    }
-  }
-
-  await helpers.replicateAndSync(bases)
-}
-*/
 
 function jsonKeyedOpen (linStore, base) {
   return new SimpleView(base, linStore.get('simple-bee'), {

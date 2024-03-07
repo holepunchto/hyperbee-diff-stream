@@ -10,7 +10,7 @@ Even if several peers (including you in your local fork) made a lot of changes t
 `npm i hyperbee-diff-stream`
 
 ## Compatibility
-Uses features introduced in Hyperbee ^2.5.0 and Hypercore ^10.8.1
+Uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0-rc3
 
 ## Usage
 See [example.js](./example.js)
@@ -36,7 +36,8 @@ The `opts` include:
   lt: 'only consider keys < than this',
   lte: 'only consider keys <= than this',
   keyEncoding: 'utf-8', // a key encoding
-  valueEncoding: 'json' // a value encoding
+  valueEncoding: 'json' // a value encoding,
+  closeSnapshots: true // set to false if you wish to use the passed-in snapshots after the diffStream is fully yielded.
 }
 ```
 By default the key- and value encoding of the hyperbee are used.

@@ -10,7 +10,6 @@ function getKey (diffEntry) {
 function areEqual (diff1, diff2) {
   if (diff1 === null && diff2 === null) return true
   if (diff1 === null || diff2 === null) return false
-  console.log('diff1Value:', diff1.value.toString(), 'diff2:', diff2.value.toString(), '--', b4a.equals(diff1.value, diff2.value))
   return b4a.equals(diff1.value, diff2.value)
 }
 
@@ -30,25 +29,39 @@ function decodeEntry (diffEntry, keyEncoding, valueEncoding) {
 
 function createUnionMap (keyEncoding, valueEncoding) {
   const decode = diffEntry => decodeEntry(diffEntry, keyEncoding, valueEncoding)
+  const filterSameValue = ({ left, right }) => {
+    // Diffs are also yielded when the value is the same, but the sequence
+    // is not. This filters out that case.
+    if (left?.value === right?.value) return null
+    return { left, right }
+  }
 
   return function unionMap (undoDiffEntry, applyDiffEntry) {
-    console.log('processing undo:', JSON.stringify(undoDiffEntry), '\napply:', JSON.stringify(applyDiffEntry)) // ?.value?.toString())
     if (undoDiffEntry === null) {
-      return { left: decode(applyDiffEntry.left), right: decode(applyDiffEntry.right) }
+      return filterSameValue({
+        left: decode(applyDiffEntry.left),
+        right: decode(applyDiffEntry.right)
+      }
+      )
     }
     if (applyDiffEntry === null) {
       // requires undoing, so reverse
-      return { left: decode(undoDiffEntry.right), right: decode(undoDiffEntry.left) }
+      return filterSameValue({
+        left: decode(undoDiffEntry.right),
+        right: decode(undoDiffEntry.left)
+      })
     }
 
     const haveSameNewValue = areEqual(undoDiffEntry.left, applyDiffEntry.left)
 
     if (!haveSameNewValue) {
-      console.log('different value for', applyDiffEntry.left.toString(), '--', undoDiffEntry.left.toString())
       // apply-entry wins, but the previous state (.right) is not the value
       // at the last indexedLength, since a diffEntry to undo exists for the same key
       // So we yield that to-undo diffEntry's final state as previous state for this change
-      return { left: decode(applyDiffEntry.left), right: decode(undoDiffEntry.left) }
+      return filterSameValue({
+        left: decode(applyDiffEntry.left),
+        right: decode(undoDiffEntry.left)
+      })
     }
     // else: already processed in prev getDiffs, so filter out
     return null
@@ -80,7 +93,6 @@ class BeeDiffStream extends Union {
     const sharedIndexedL = Math.min(
       leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength
     )
-    console.log('shared indexed length', sharedIndexedL)
 
     // TODO: consider optimisation for case where the version of both streams
     // is lower than the sharedIndexedL (in which case only the changes from

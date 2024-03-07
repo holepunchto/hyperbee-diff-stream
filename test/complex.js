@@ -142,7 +142,8 @@ function diffsToValues (diffs) {
   return [newState, oldState]
 }
 
-// Test on scaling. Takes longer (~1min), so not run by default
+// Test on scaling. Sensitive to timings and possible false positives
+// so not run by default in the CI, but good to run this when making changes.
 test.skip('low overhead compared to normal diffStream if applied to bee', async t => {
   const maxOverheadFactor = 2
   const magnitudes = [25, 50, 100, 1000]
@@ -189,7 +190,6 @@ test.skip('low overhead compared to normal diffStream if applied to bee', async 
 
     t.is(beeDiffs.length, nrTotalEntries) // Sanity check
     t.alike(differDiffs, beeDiffs) // Sanity check
-
     t.is(ownTime < beeTime * maxOverheadFactor, true)
   }
 })
