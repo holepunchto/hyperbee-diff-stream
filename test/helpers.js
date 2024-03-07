@@ -1,8 +1,11 @@
 const ram = require('random-access-memory')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
+const helpers = require('autobase-test-helpers')
+const Autobase = require('autobase')
 
-const Autobase = require('@holepunchto/autobase')
+const sync = helpers.sync
+const DEBUG_LOG = false
 
 module.exports = {
   create,
@@ -12,60 +15,71 @@ module.exports = {
   jsonKeyedOpen,
   setup,
   streamToArray,
-  confirm
+  confirm,
+  replicateAndSync: helpers.replicateAndSync
 }
 
-async function create (n, apply, open) {
-  const opts = { apply, open, valueEncoding: 'json' }
-  const bases = [new Autobase(new Corestore(ram, { primaryKey: Buffer.alloc(32).fill(0) }), null, opts)]
-  await bases[0].ready()
-  if (n === 1) return bases
-  for (let i = 1; i < n; i++) {
-    const base = new Autobase(new Corestore(ram, { primaryKey: Buffer.alloc(32).fill(i) }), bases[0].local.key, opts)
-    await base.ready()
-    bases.push(base)
+async function createBase (store, key, apply, open, t, opts = {}) {
+  const moreOpts = {
+    apply,
+    open,
+    close: undefined,
+    valueEncoding: 'json',
+    ...opts
   }
+
+  const base = new Autobase(store.session(), key, moreOpts)
+  await base.ready()
+
+  t.teardown(() => base.close(), { order: 1 })
+
+  return base
+}
+
+async function createStores (n, t) {
+  const stores = []
+  for (let i = 0; i < n; i++) {
+    const storage = ram.reusable()
+    const primaryKey = Buffer.alloc(32, i)
+    stores.push(new Corestore(storage, { primaryKey }))
+  }
+
+  t.teardown(() => Promise.all(stores.map(s => s.close())), { order: 2 })
+
+  return stores
+}
+
+async function create (n, apply, open, t) {
+  const stores = await createStores(n, t)
+  const bases = [await createBase(stores[0], null, apply, open, t)]
+
+  if (n === 1) return { stores, bases }
+
+  for (let i = 1; i < n; i++) {
+    bases.push(await createBase(stores[i], bases[0].local.key, apply, open, t))
+  }
+
   return bases
 }
 
-async function sync (...bases) {
-  const streams = []
+async function addWriter (base, add, indexer = true) {
+  return base.append({ add: add.local.key.toString('hex'), indexer })
+}
 
-  for (const a of bases) {
-    for (const b of bases) {
-      if (a === b) continue
-      const s1 = a.store.replicate(true)
-      const s2 = b.store.replicate(false)
-
-      s1.on('error', () => {})
-      s2.on('error', () => {})
-
-      s1.pipe(s2).pipe(s1)
-
-      streams.push(s1)
-      streams.push(s2)
-    }
-  }
-
-  await Promise.all(bases.map(b => b.update({ wait: true })))
-
-  for (const stream of streams) {
-    stream.destroy()
-  }
+async function addWriterAndSync (base, add, indexer = true, bases = [base, add]) {
+  await addWriter(base, add, indexer)
+  await helpers.replicateAndSync(bases)
+  await base.ack()
+  await helpers.replicateAndSync(bases)
 }
 
 async function setup (t, { openFun = open } = {}) {
   // 2 writers, 1 read-only
-  const bases = await create(3, (...args) => apply(t, ...args), openFun)
+  const bases = await create(3, (...args) => apply(t, ...args), openFun, t)
   const [base1, base2] = bases
 
-  await base1.append({
-    add: base2.local.key.toString('hex')
-  })
-
-  await sync(...bases)
-  await base1.append(null)
-  await sync(...bases)
+  await addWriterAndSync(base1, base2, true)
+  await confirm(bases)
 
   return bases
 }
@@ -105,9 +119,10 @@ function encodedOpen (linStore, base) {
 
 async function apply (t, batch, simpleView, base) {
   for (const { value } of batch) {
+    if (DEBUG_LOG) console.debug('applying', value)
     if (value === null) continue
     if (value.add) {
-      await base.system.addWriter(Buffer.from(value.add, 'hex'))
+      await base.addWriter(Buffer.from(value.add, 'hex'), { indexer: value.indexer })
     } else {
       try {
         if (value.delete) {
@@ -133,14 +148,21 @@ async function streamToArray (stream) {
   return res
 }
 
-async function confirm (base1, base2) {
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
-  await base1.append(null)
-  await base2.append(null)
-  await sync(base1, base2)
+async function confirm (bases, options = {}) {
+  await helpers.replicateAndSync(bases)
+
+  for (let i = 0; i < 2; i++) {
+    const writers = bases.filter(b => !!b.localWriter)
+    const maj = options.majority || (Math.floor(writers.length / 2) + 1)
+    for (let j = 0; j < maj; j++) {
+      if (!writers[j].writable) continue
+
+      await writers[j].append(null)
+      await helpers.replicateAndSync(bases)
+    }
+  }
+
+  await helpers.replicateAndSync(bases)
 }
 
 function jsonKeyedOpen (linStore, base) {

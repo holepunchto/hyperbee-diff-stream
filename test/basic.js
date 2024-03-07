@@ -6,7 +6,7 @@ const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
-const { sync, streamToArray, setup, encodedOpen, jsonKeyedOpen, confirm } = require('./helpers')
+const { streamToArray, setup, encodedOpen, jsonKeyedOpen, confirm, replicateAndSync } = require('./helpers')
 
 test('no changes -> empty diff', async t => {
   const bases = await setup(t)
@@ -25,7 +25,7 @@ test('index moved ahead', async t => {
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
 
-  await confirm(...bases)
+  await confirm(bases)
 
   const newBee = base1.view.bee.snapshot()
 
@@ -43,11 +43,16 @@ test('new bee forked, but no old fork nor changes to index', async t => {
   const origBee = base1.view.bee.snapshot()
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
+
   await base1.append({ entry: ['1-2', '1-entry2'] })
+
+  await new Promise(resolve => setTimeout(resolve, 500))
 
   const newBee = base1.view.bee.snapshot()
 
   t.is(newBee.core.indexedLength, 0) // Sanity check
+
+  await new Promise(resolve => setTimeout(resolve, 500))
   const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-1', '1-2'])
@@ -69,9 +74,8 @@ test('new continued old fork, but no changes to index', async t => {
   await base1.append({ entry: ['1-4', '1-entry4'] })
 
   const newBee = base1.view.bee.snapshot()
-
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
-  t.is(newBee.feed.indexedLength, 0) // Sanity check
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
+  t.is(newBee.core.indexedLength, 0) // Sanity check
 
   t.alike(diffs.map(({ left }) => left.key.toString()), ['1-3', '1-4'])
   t.alike(diffs.map(({ right }) => right), [null, null])
@@ -83,8 +87,8 @@ test('both new index and new fork--old had up to date index', async t => {
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await confirm(base1, base2)
-  await sync(...bases)
+  await confirm([base1, base2])
+  await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
   const origIndexedL = readOnlyBase.view.bee.core.indexedLength
@@ -93,15 +97,15 @@ test('both new index and new fork--old had up to date index', async t => {
 
   await base1.append({ entry: ['1-3', '1-entry3'] })
   await base1.append({ entry: ['1-4', '1-entry4'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // Fork
   await base1.append({ entry: ['1-5', '1-entry5'] })
-  await sync(base1, readOnlyBase)
+  await replicateAndSync([base1, readOnlyBase])
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   t.is(newBee.feed.indexedLength, 5) // Sanity check
   t.is(newBee.version, 6) // Sanity check
 
@@ -122,11 +126,11 @@ test('local version > 0, indexedLength still 0--merge in remote fork', async t =
   t.is(origIndexedL, 0) // Sanity check
   t.is(origBee.version, 2) // Sanity check
 
-  await sync(...bases)
+  await replicateAndSync(bases)
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   t.is(newBee.feed.indexedLength, 0) // Sanity check
   t.is(newBee.version, 4) // Sanity check
 
@@ -139,9 +143,9 @@ test('new index, new fork and old fork all resolved nicely', async t => {
   const [base1, base2, readOnlyBase] = bases
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await sync(...bases)
+  await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
   const origIndexedL = readOnlyBase.view.bee.core.indexedLength
@@ -150,15 +154,15 @@ test('new index, new fork and old fork all resolved nicely', async t => {
 
   await base1.append({ entry: ['1-3', '1-entry3'] })
   await base1.append({ entry: ['1-4', '1-entry4'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // New Fork
   await base1.append({ entry: ['1-5', '1-entry5'] })
-  await sync(base1, readOnlyBase)
+  await replicateAndSync([base1, readOnlyBase])
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   t.is(newBee.feed.indexedLength, 5) // Sanity check
   t.is(newBee.version, 6) // Sanity check
 
@@ -171,9 +175,9 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   const [base1, base2, readOnlyBase] = bases
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await sync(...bases)
+  await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
   const origIndexedL = readOnlyBase.view.bee.core.indexedLength
@@ -183,16 +187,16 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   await base1.append({ delete: '1-1' })
   await base1.append({ entry: ['1-3', '1-entry3'] })
   await base1.append({ entry: ['1-4', '1-entry4'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // New Fork
   await base1.append({ entry: ['1-5', '1-entry5'] })
   await base1.append({ delete: '1-3' })
-  await sync(base1, readOnlyBase)
+  await replicateAndSync([base1, readOnlyBase])
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   t.is(newBee.feed.indexedLength, 6) // Sanity check
   t.is(newBee.version, 8) // Sanity check
 
@@ -207,7 +211,8 @@ test('new snapshot has same final value as old fork but through different path -
   await base1.append({ entry: ['shared', 'shared-entry'] })
   await base1.append({ entry: ['to-be-deleted', 'shared-delete'] })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
+
   // Both bases will modify shared to 'change' and will delete 'to-be-deleted'
   // but through a different series of operations
 
@@ -219,6 +224,7 @@ test('new snapshot has same final value as old fork but through different path -
   await base1.append({ delete: 'to-be-deleted' })
 
   const origBee = base1.view.bee.snapshot()
+
   // Normally base1 would now create the diffStream and yield the changes to this point
   // So reaching here, it has yielded 'change' and the deletion already
 
@@ -230,10 +236,11 @@ test('new snapshot has same final value as old fork but through different path -
   await base2.append({ entry: ['something', 'else'] })
   await base2.append({ delete: 'to-be-deleted' })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
+
   const newBee = base1.view.bee.snapshot() // Need only yield 'something->else' as change
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   t.alike(diffs, [{ left: { seq: 12, key: 'something', value: 'else' }, right: null }])
 })
 
@@ -243,7 +250,7 @@ test('both old and new made changes to the same key -> new value yielded, but so
 
   await base1.append({ entry: ['shared', 'shared-entry'] })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   // Both bases will modify 'shared''
 
   await base1.append({ entry: ['shared', 'I'] })
@@ -259,12 +266,12 @@ test('both old and new made changes to the same key -> new value yielded, but so
   await base2.append({ entry: ['shared', 'Different result'] })
 
   // The linearisation alg will make base2 win
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   const newBee = base1.view.bee.snapshot()
   t.is((await newBee.get('shared')).value, 'Different result') // Sanity check on linearisation order
 
   // the change to yield now is from base1's last value -> the current value
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   const sourceEntry = { seq: 3, key: 'shared', value: 'modify' }
   const destEntry = { seq: 5, key: 'shared', value: 'Different result' }
   t.alike(diffs, [{ left: destEntry, right: sourceEntry }])
@@ -276,7 +283,7 @@ test('complex autobase linearisation with truncates', async t => {
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   let hasTruncated = false
   base2.view.bee.core.on('truncate', function () { hasTruncated = true })
@@ -300,13 +307,13 @@ test('complex autobase linearisation with truncates', async t => {
   t.is(origIndexedL2, 3) // Sanity check
   t.is(origBee2.version, 6) // Sanity check
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1))
-  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2))
+  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1, { closeSnapshots: false }))
+  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2, { closeSnapshots: false }))
 
   t.is(newBee1.feed.indexedLength, 8) // Sanity check
   t.is(newBee1.version, 8) // Sanity check
@@ -328,7 +335,7 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 
   await base1.append({ entry: ['1-1', '1-entry1'] })
   await base1.append({ entry: ['1-2', '1-entry2'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   let hasTruncated = false
   base2.view.bee.core.on('truncate', function () { hasTruncated = true })
@@ -354,13 +361,13 @@ test('complex autobase linearisation with truncates and deletes', async t => {
   t.is(origIndexedL2, 3) // Sanity check
   t.is(origBee2.version, 5) // Sanity check
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1))
-  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2))
+  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee, newBee1, { closeSnapshots: false }))
+  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2, newBee2, { closeSnapshots: false }))
 
   t.is(newBee1.feed.indexedLength, 9) // Sanity check
   t.is(newBee1.version, 9) // Sanity check
@@ -421,15 +428,15 @@ test('yields with original encoding', async function (t) {
 
   await base1.append({ entry: ['1-1', { name: 'name1' }] })
   const oldBee = bee.snapshot()
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   await base2.append({ entry: ['2-1', { name: '2-name1' }] })
   await base1.append({ entry: ['1-2', { name: 'name2' }] })
   await base1.append({ delete: '1-1' })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
-  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), { closeSnapshots: false }))
   const expected = [
     {
       left: null,
@@ -466,17 +473,18 @@ test('can pass diffStream range opts', async function (t) {
 
   await base1.append({ entry: ['1-1', { name: 'name1' }] })
   const oldBee = bee.snapshot()
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   await base2.append({ entry: ['2-1', { name: '2-name1' }] })
   await base1.append({ entry: ['1-2', { name: 'name2' }] })
   await base1.append({ delete: '1-1' })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
     gt: '1-1',
-    lt: '2-1'
+    lt: '2-1',
+    closeSnapshots: false
   }))
   const expected = [
     {
@@ -514,19 +522,20 @@ test('diffStream range opts are encoded (handles sub-encodings)', async function
 
   // Add more subbed entries
   const oldBee = bee.snapshot()
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   await base2.append({ entry: ['z-after', '2-entry1'] })
   await base1.append({ entry: ['included', 'entry2'] })
   await base1.append({ delete: 'a-before' })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // Diff stream should apply the 'gt' and 'st' conditions only to the sub
   // so 'not-subbed' will not be included, even though it fits in the range
   const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
     gt: 'a-before',
-    lt: 'z-after'
+    lt: 'z-after',
+    closeSnapshots: false
   }))
   const expected = [
     {
@@ -567,7 +576,7 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   await base1.append({ entry: ['1-2', '1-entry2'] })
   await base1.append({ entry: ['shared', 'shared-init'] })
   await base1.append({ entry: ['shared-del', 'to-be-deleted'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   await Promise.all([
     base1.append({ entry: ['1-3', '1-entry3'] }),
@@ -586,19 +595,19 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   const origBee = base1.view.bee.snapshot()
   const origBee2 = base2.view.bee.snapshot()
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   const newBee1 = base1.view.bee.snapshot()
   const newBee2 = base2.view.bee.snapshot()
 
-  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee.snapshot(), newBee1.snapshot()))
-  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2.snapshot(), newBee2.snapshot()))
+  const diffsBee1 = await streamToArray(new BeeDiffStream(origBee.snapshot(), newBee1.snapshot(), { closeSnapshots: false }))
+  const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2.snapshot(), newBee2.snapshot(), { closeSnapshots: false }))
 
   const reverseDiffsBee1 = await streamToArray(new BeeDiffStream(newBee1.snapshot(), origBee.snapshot()))
   const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2.snapshot(), origBee2.snapshot()))
 
   // Check they are indeed reversed (so left<->right)
-  t.is(diffsBee1.length, 4) // sanity check
+  t.is(diffsBee1.length, 4, 'sanity check')
   t.alike(diffsBee1, reverseDiffsBee1.map(({ left, right }) => { return { left: right, right: left } }))
 
   t.is(diffsBee2.length, 2) // sanity check
@@ -633,7 +642,7 @@ test('correctly handles diff between snapshots older than the indexedLength (aut
   await base1.append({ entry: ['1-3', { name: 'entry 1-3' }] })
   await base1.append({ entry: ['1-4', { name: 'entry 1-4' }] })
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   const oldBee = bee.checkout(2) // Post 1-1 added
   const newBee = bee.checkout(4) // Post 1-3 added
 
@@ -680,23 +689,23 @@ test('works with JSON key encoding', async t => {
   const key = '0'.repeat(64)
 
   await base1.append({ entry: [{ key, seq: 0 }, '1-entry1'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   await base1.append({ entry: [{ key, seq: 1 }, '1-entry2'] })
-  await sync(...bases)
+  await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
 
   await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
   await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // New Fork
   await base1.append({ entry: [{ key, seq: 4 }, '1-entry5'] })
-  await sync(base1, readOnlyBase)
+  await replicateAndSync([base1, readOnlyBase])
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
 
   t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 2 }, { key, seq: 3 }, { key, seq: 4 }])
   t.alike(diffs.map(({ right }) => right), [null, null, null])
@@ -709,23 +718,23 @@ test('works with JSON key encoding and ranges', async t => {
   const key = '0'.repeat(64)
 
   await base1.append({ entry: [{ key, seq: 0 }, '1-entry1'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   await base1.append({ entry: [{ key, seq: 1 }, '1-entry2'] })
-  await sync(...bases)
+  await replicateAndSync(bases)
 
   const origBee = readOnlyBase.view.bee.snapshot()
 
   await base1.append({ entry: [{ key, seq: 2 }, '1-entry3'] })
   await base1.append({ entry: [{ key, seq: 3 }, '1-entry4'] })
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // New Fork
   await base1.append({ entry: [{ key, seq: 4 }, '1-entry5'] })
-  await sync(base1, readOnlyBase)
+  await replicateAndSync([base1, readOnlyBase])
 
   const newBee = readOnlyBase.view.bee.snapshot()
 
-  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { gte: { key, seq: 3 } }))
+  const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { gte: { key, seq: 3, closeSnapshots: false } }))
 
   t.alike(diffs.map(({ left }) => left.key), [{ key, seq: 3 }, { key, seq: 4 }])
   t.alike(diffs.map(({ right }) => right), [null, null])

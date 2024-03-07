@@ -19,7 +19,7 @@ test('complex scenario with many diff cases', async t => {
   }
   await Promise.all(baselineProms)
 
-  await confirm(base1, base2)
+  await confirm([base1, base2])
 
   // Corresponds to the state just before going offline
   const baselineBee = base2.view.bee.snapshot()
@@ -104,7 +104,7 @@ test('complex scenario with many diff cases', async t => {
   await base2.append({ entry: ['shared-new3', 'shared-new3 added multiple times by 2 (2)'] })
 
   // The peers sync and the autobases are linearised
-  await confirm(base1, base2)
+  await confirm([base1, base2])
   const newBee = base2.view.bee.snapshot()
   const [newState, refState] = diffsToValues(
     await streamToArray(new BeeDiffStream(refBee, newBee))
@@ -142,7 +142,8 @@ function diffsToValues (diffs) {
   return [newState, oldState]
 }
 
-// Test on scaling. Takes longer (~1min), so not run by default
+// Test on scaling. Sensitive to timings and possible false positives
+// so not run by default in the CI, but good to run this when making changes.
 test.skip('low overhead compared to normal diffStream if applied to bee', async t => {
   const maxOverheadFactor = 2
   const magnitudes = [25, 50, 100, 1000]
@@ -189,7 +190,6 @@ test.skip('low overhead compared to normal diffStream if applied to bee', async 
 
     t.is(beeDiffs.length, nrTotalEntries) // Sanity check
     t.alike(differDiffs, beeDiffs) // Sanity check
-
     t.is(ownTime < beeTime * maxOverheadFactor, true)
   }
 })

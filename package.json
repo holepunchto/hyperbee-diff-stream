@@ -17,7 +17,8 @@
   "author": "H. Degroote",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@holepunchto/autobase": "^1.0.0",
+    "autobase": "^6.0.0-rc3",
+    "autobase-test-helpers": "^2.0.4",
     "brittle": "^3.1.1",
     "corestore": "^6.5.0",
     "hyperbee": "^2.5.0",
