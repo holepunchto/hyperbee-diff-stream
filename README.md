@@ -7,7 +7,7 @@ it can get the diff stream between a snapshot from just before and from just aft
 Even if several peers (including you in your local fork) made a lot of changes to a particular key, the diff stream will still yield only a single change for it.
 
 ## Install
-`npm i @holepunchto/hyperbee-diff-stream`
+`npm i hyperbee-diff-stream`
 
 ## Compatibility
 Uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0-rc3
