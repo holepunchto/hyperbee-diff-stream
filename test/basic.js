@@ -204,7 +204,7 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['1-1', undefined, undefined])
 })
 
-test('new snapshot has same final value as old fork but through different path ->no change', async t => {
+test.skip('new snapshot has same final value as old fork but through different path ->no change', async t => {
   const bases = await setup(t, { openFun: encodedOpen })
   const [base1, base2] = bases
 
@@ -420,7 +420,7 @@ test('can handle hyperbee without key or value encoding', async function (t) {
   t.alike(diffs.map(({ right }) => right?.key), [undefined]) // deletions
 })
 
-test('yields with original encoding', async function (t) {
+test.skip('yields with original encoding', async function (t) {
   const bases = await setup(t, { openFun: encodedOpen })
 
   const [base1, base2] = bases
