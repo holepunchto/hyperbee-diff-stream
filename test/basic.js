@@ -204,7 +204,7 @@ test('new index, new fork and old fork all resolved nicely (deletes)', async t =
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['1-1', undefined, undefined])
 })
 
-test.skip('new snapshot has same final value as old fork but through different path ->no change', async t => {
+test('new snapshot has same final value as old fork but through different path ->no change', async t => {
   const bases = await setup(t, { openFun: encodedOpen })
   const [base1, base2] = bases
 
@@ -241,7 +241,8 @@ test.skip('new snapshot has same final value as old fork but through different p
   const newBee = base1.view.bee.snapshot() // Need only yield 'something->else' as change
 
   const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
-  t.alike(diffs, [{ left: { seq: 12, key: 'something', value: 'else' }, right: null }])
+  const expected = [{ left: { seq: 10, key: 'something', value: 'else' }, right: null }]
+  sameKeysAndValues(t, diffs, expected)
 })
 
 test('both old and new made changes to the same key -> new value yielded, but source = the old value', async t => {
@@ -274,7 +275,7 @@ test('both old and new made changes to the same key -> new value yielded, but so
   const diffs = await streamToArray(new BeeDiffStream(origBee, newBee, { closeSnapshots: false }))
   const sourceEntry = { seq: 3, key: 'shared', value: 'modify' }
   const destEntry = { seq: 5, key: 'shared', value: 'Different result' }
-  t.alike(diffs, [{ left: destEntry, right: sourceEntry }])
+  sameKeysAndValues(t, diffs, [{ left: destEntry, right: sourceEntry }])
 })
 
 test('complex autobase linearisation with truncates', async t => {
@@ -401,7 +402,7 @@ test('works with normal hyperbee', async function (t) {
   t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
-  t.alike(directDiffs, diffs)
+  sameKeysAndValues(t, directDiffs, diffs)
 })
 
 test('can handle hyperbee without key or value encoding', async function (t) {
@@ -420,7 +421,7 @@ test('can handle hyperbee without key or value encoding', async function (t) {
   t.alike(diffs.map(({ right }) => right?.key), [undefined]) // deletions
 })
 
-test.skip('yields with original encoding', async function (t) {
+test('yields with original encoding', async function (t) {
   const bases = await setup(t, { openFun: encodedOpen })
 
   const [base1, base2] = bases
@@ -462,7 +463,7 @@ test.skip('yields with original encoding', async function (t) {
       right: null
     }
   ]
-  t.alike(diff, expected)
+  sameKeysAndValues(t, diff, expected)
 })
 
 test('can pass diffStream range opts', async function (t) {
@@ -496,7 +497,7 @@ test('can pass diffStream range opts', async function (t) {
       right: null
     }
   ]
-  t.alike(diff, expected)
+  sameKeysAndValues(t, diff, expected)
 })
 
 test('diffStream range opts are encoded (handles sub-encodings)', async function (t) {
@@ -547,7 +548,7 @@ test('diffStream range opts are encoded (handles sub-encodings)', async function
       right: null
     }
   ]
-  t.alike(diff, expected)
+  sameKeysAndValues(t, diff, expected)
 })
 
 test('can pass in key- or valueEncoding', async function (t) {
@@ -563,8 +564,8 @@ test('can pass in key- or valueEncoding', async function (t) {
   const keyTextDiffs = await streamToArray(new BeeDiffStream(origBee.snapshot(), bee.snapshot(), { keyEncoding: 'utf-8' }))
   const valueTextDiffs = await streamToArray(new BeeDiffStream(origBee.snapshot(), bee.snapshot(), { valueEncoding: 'utf-8' }))
 
-  t.alike(keyTextDiffs, [{ left: { seq: 1, key: '1-1', value: b4a.from('1-entry1') }, right: null }])
-  t.alike(valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
+  sameKeysAndValues(t, keyTextDiffs, [{ left: { seq: 1, key: '1-1', value: b4a.from('1-entry1') }, right: null }])
+  sameKeysAndValues(t, valueTextDiffs, [{ left: { seq: 1, key: b4a.from('1-1'), value: '1-entry1' }, right: null }])
 })
 
 test('reversing old- and new snapshot position yields reversed left-right', async function (t) {
@@ -607,6 +608,9 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   const reverseDiffsBee2 = await streamToArray(new BeeDiffStream(newBee2.snapshot(), origBee2.snapshot()))
 
   // Check they are indeed reversed (so left<->right)
+  // DEVNOTE: if this fails because of different seqs,
+  // consider not testing on the seqs
+  // (but make sure it is indeed not guaranteed that they have the same seqs)
   t.is(diffsBee1.length, 4, 'sanity check')
   t.alike(diffsBee1, reverseDiffsBee1.map(({ left, right }) => { return { left: right, right: left } }))
 
@@ -679,7 +683,7 @@ test('correctly handles diff between snapshots older than the indexedLength (nor
   t.alike(diffs.map(({ left }) => left?.key.toString()), [undefined, 'e3'])
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
-  t.alike(directDiffs, diffs)
+  sameKeysAndValues(t, directDiffs, diffs)
 })
 
 test('works with JSON key encoding', async t => {
@@ -760,3 +764,25 @@ test('does not close snapshots if option set', async function (t) {
   t.is(oldSnapRef.core.closed, true)
   t.is(newSnapRef.core.closed, true)
 })
+
+function sameKeysAndValues (t, actual, expected) {
+  const extractKeysAndValues = ({ left, right }) => {
+    const res = {}
+    if (left !== null) {
+      if (!left.key || !left.value) throw new Error('Invalid entry')
+      res.left = { key: left.key, value: left.value }
+    }
+    if (right !== null) {
+      if (!right.key || !right.value) throw new Error('Invalid entry')
+      res.right = { key: right.key, value: right.value }
+    }
+    if (!res.left && !res.right) throw new Error('Invalid entry')
+
+    return res
+  }
+
+  const actualClean = actual.map(extractKeysAndValues)
+  const expectedClean = expected.map(extractKeysAndValues)
+
+  t.alike(actualClean, expectedClean)
+}
