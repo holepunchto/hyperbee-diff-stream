@@ -10,7 +10,7 @@ Even if several peers (including you in your local fork) made a lot of changes t
 `npm i hyperbee-diff-stream`
 
 ## Compatibility
-Uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0-rc3
+Uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0
 
 ## Usage
 See [example.js](./example.js)
