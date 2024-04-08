@@ -14,6 +14,9 @@
     "url": "https://github.com/holepunchto/hyperbee-diff-stream/issues"
   },
   "homepage": "https://github.com/holepunchto/hyperbee-diff-stream#readme",
+  "files": [
+    "index.js"
+  ],
   "author": "Holepunch",
   "license": "Apache-2.0",
   "devDependencies": {
