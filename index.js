@@ -23,7 +23,7 @@ function unionCompare (e1, e2) {
 function decodeEntry (diffEntry, keyEncoding, valueEncoding) {
   if (!diffEntry) return diffEntry
   if (keyEncoding) diffEntry.key = keyEncoding.decode(diffEntry.key)
-  if (valueEncoding) diffEntry.value = valueEncoding.decode(diffEntry.value)
+  if (valueEncoding && diffEntry.value !== null) diffEntry.value = valueEncoding.decode(diffEntry.value)
   return diffEntry
 }
 
