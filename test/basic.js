@@ -765,6 +765,31 @@ test('does not close snapshots if option set', async function (t) {
   t.is(newSnapRef.core.closed, true)
 })
 
+test('supports diffing values skipped by hyperbee encoding', async t => {
+  const [base1] = await setup(t, { openFun: encodedOpen })
+  const bee = base1.view.bee
+
+  const oldBee = bee.snapshot()
+  // Append key w/ no value
+  await base1.append({ entry: ['1-1'] })
+  await base1.append({ entry: ['1-2', undefined] })
+
+  const diffs = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot()))
+  t.alike(diffs.map(({ left }) => left), [
+    {
+      seq: 1,
+      key: '1-1',
+      value: null
+    },
+    {
+      seq: 2,
+      key: '1-2',
+      value: null
+    }
+  ])
+  t.alike(diffs.map(({ right }) => right?.key), [undefined, undefined]) // deletions
+})
+
 function sameKeysAndValues (t, actual, expected) {
   const extractKeysAndValues = ({ left, right }) => {
     const res = {}
