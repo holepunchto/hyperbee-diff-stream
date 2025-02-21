@@ -1,8 +1,8 @@
-const ram = require('random-access-memory')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
 const helpers = require('autobase-test-helpers')
 const Autobase = require('autobase')
+const tmpDir = require('test-tmp')
 
 const sync = helpers.sync
 const DEBUG_LOG = false
@@ -39,7 +39,7 @@ async function createBase (store, key, apply, open, t, opts = {}) {
 async function createStores (n, t) {
   const stores = []
   for (let i = 0; i < n; i++) {
-    const storage = ram.reusable()
+    const storage = await tmpDir()
     const primaryKey = Buffer.alloc(32, i)
     stores.push(new Corestore(storage, { primaryKey }))
   }
