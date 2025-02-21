@@ -1,6 +1,6 @@
 {
   "name": "hyperbee-diff-stream",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "Get the diff stream between two versions of a hyperbee (supports autobase views)",
   "main": "index.js",
   "scripts": {
