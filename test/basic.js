@@ -718,6 +718,8 @@ test('does not close snapshots if option set', async function (t) {
   t.is(oldSnapRef.core.closed, true)
   t.is(newSnapRef.core.closed, true)
 
+  await oldSnap.close()
+  await newSnap.close()
   await bee.close()
 })
 
