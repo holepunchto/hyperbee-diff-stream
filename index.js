@@ -56,7 +56,7 @@ function createUnionMap (keyEncoding, valueEncoding) {
 
     if (!haveSameNewValue) {
       // apply-entry wins, but the previous state (.right) is not the value
-      // at the last indexedLength, since a diffEntry to undo exists for the same key
+      // at the last signedLength, since a diffEntry to undo exists for the same key
       // So we yield that to-undo diffEntry's final state as previous state for this change
       return filterSameValue({
         left: decode(applyDiffEntry.left),
@@ -85,13 +85,13 @@ class BeeDiffStream extends Union {
     // Binary encodings for easier comparison later
     opts = { ...opts, gt, gte, lt, lte, valueEncoding: 'binary', keyEncoding: 'binary' }
 
-    if (leftSnapshot.core.indexedLength === undefined) {
-      throw new Error('Incompatible Hypercore version--must have indexedLength property')
+    if (leftSnapshot.core.signedLength === undefined) {
+      throw new Error('Incompatible Hypercore version--must have signedLength property')
     }
 
     // We know that everything indexed in both snapshots is shared
     const sharedIndexedL = Math.min(
-      leftSnapshot.core.indexedLength, rightSnapshot.core.indexedLength
+      leftSnapshot.core.signedLength, rightSnapshot.core.signedLength
     )
 
     // TODO: consider optimisation for case where the version of both streams
