@@ -1,6 +1,5 @@
 const BeeDiffStream = require('.')
 const Hyperbee = require('hyperbee')
-const ram = require('random-access-memory')
 const Autobase = require('autobase')
 const Corestore = require('corestore')
 
@@ -25,7 +24,7 @@ async function main () {
     valueEncoding: 'json' // the apply function will receive batches of jsons
   }
 
-  const store = new Corestore(ram)
+  const store = new Corestore('./example.db')
   const base = new Autobase(store, null, opts)
   await base.append({ add: ['e1', 'entry1'] })
   await base.append({ add: ['e2', 'entry2'] })

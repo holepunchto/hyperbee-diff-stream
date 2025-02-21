@@ -1,7 +1,6 @@
 const test = require('brittle')
 const Hyperbee = require('hyperbee')
 const b4a = require('b4a')
-const SubEncoder = require('sub-encoder')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
