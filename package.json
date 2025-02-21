@@ -26,12 +26,12 @@
     "corestore": "^7.0.0",
     "hyperbee": "^2.5.0",
     "random-access-memory": "^6.1.0",
-    "standard": "^17.0.0"
+    "standard": "^17.0.0",
+    "test-tmp": "^1.4.0"
   },
   "dependencies": {
     "b4a": "^1.6.1",
     "codecs": "^3.0.0",
-    "sorted-union-stream": "^3.2.3",
-    "test-tmp": "^1.4.0"
+    "sorted-union-stream": "^3.2.3"
   }
 }
