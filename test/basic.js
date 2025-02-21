@@ -404,6 +404,8 @@ test('works with normal hyperbee', async function (t) {
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
   sameKeysAndValues(t, directDiffs, diffs)
+
+  await bee.close()
 })
 
 test('can handle hyperbee without key or value encoding', async function (t) {
@@ -634,6 +636,8 @@ test('correctly handles diff between snapshots older than the signedLength (norm
   t.alike(diffs.map(({ right }) => right?.key.toString()), ['e1', undefined]) // deletions
 
   sameKeysAndValues(t, directDiffs, diffs)
+
+  await bee.close()
 })
 
 test('works with JSON key encoding', async t => {
@@ -713,6 +717,8 @@ test('does not close snapshots if option set', async function (t) {
   await streamToArray(new BeeDiffStream(oldSnapRef, newSnapRef))
   t.is(oldSnapRef.core.closed, true)
   t.is(newSnapRef.core.closed, true)
+
+  await bee.close()
 })
 
 test('supports diffing values skipped by hyperbee encoding', async t => {
