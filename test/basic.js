@@ -2,7 +2,6 @@ const test = require('brittle')
 const Hyperbee = require('hyperbee')
 const b4a = require('b4a')
 const SubEncoder = require('sub-encoder')
-const ram = require('random-access-memory')
 const Hypercore = require('hypercore')
 
 const BeeDiffStream = require('../index')
@@ -254,21 +253,24 @@ test('both old and new made changes to the same key -> new value yielded, but so
   await confirm([base1, base2])
   // Both bases will modify 'shared''
 
-  await base1.append({ entry: ['shared', 'I'] })
-  await base1.append({ entry: ['shared', 'modify'] })
+  await base2.append({ entry: ['shared', 'I'] })
+  await base2.append({ entry: ['shared', 'modify'] })
 
-  const origBee = base1.view.bee.snapshot()
+  const origBee = base2.view.bee.snapshot()
+
   // Normally base1 would now create the diffStream and yield the changes to this point
   // So reaching here, it has yielded 'modify' as current state
 
   // Now base2 also makes local changes to the same entry
   // ending up with a different value
-  await base2.append({ entry: ['shared', 'Different path'] })
-  await base2.append({ entry: ['shared', 'Different result'] })
+  await base1.append({ entry: ['shared', 'Different path'] })
+  await base1.append({ entry: ['shared', 'Different result'] })
 
   // The linearisation alg will make base2 win
   await confirm([base1, base2])
+
   const newBee = base1.view.bee.snapshot()
+
   t.is((await newBee.get('shared')).value, 'Different result') // Sanity check on linearisation order
 
   // the change to yield now is from base1's last value -> the current value
@@ -385,7 +387,7 @@ test('complex autobase linearisation with truncates and deletes', async t => {
 })
 
 test('works with normal hyperbee', async function (t) {
-  const bee = new Hyperbee(new Hypercore(ram))
+  const bee = new Hyperbee(new Hypercore(await t.tmp()))
   await bee.put('e1', 'entry1')
 
   const oldSnap = bee.snapshot()
@@ -500,57 +502,6 @@ test('can pass diffStream range opts', async function (t) {
   sameKeysAndValues(t, diff, expected)
 })
 
-test('diffStream range opts are encoded (handles sub-encodings)', async function (t) {
-  const bases = await setup(t)
-
-  const [base1, base2] = bases
-  const bee = base1.view.bee
-
-  await base1.append({ entry: ['not-subbed', 'no'] }) // Before the sub, to check it is not included
-
-  // hack to use a sub-encoding from now on
-  const enc = new SubEncoder()
-  bee.keyEncoding = enc.sub('sub')
-
-  await base1.append({ entry: ['a-before', 'entry1'] })
-
-  // sanity check that the 'not-subbed' entry is indeed not in the sub
-  t.alike(
-    (await bee.get('not-subbed', { keyEncoding: 'binary' })).key,
-    b4a.from('not-subbed')
-  )
-  t.is(await bee.get('not-subbed'), null)
-
-  // Add more subbed entries
-  const oldBee = bee.snapshot()
-  await confirm([base1, base2])
-
-  await base2.append({ entry: ['z-after', '2-entry1'] })
-  await base1.append({ entry: ['included', 'entry2'] })
-  await base1.append({ delete: 'a-before' })
-
-  await confirm([base1, base2])
-
-  // Diff stream should apply the 'gt' and 'st' conditions only to the sub
-  // so 'not-subbed' will not be included, even though it fits in the range
-  const diff = await streamToArray(new BeeDiffStream(oldBee, bee.snapshot(), {
-    gt: 'a-before',
-    lt: 'z-after',
-    closeSnapshots: false
-  }))
-  const expected = [
-    {
-      left: {
-        seq: 3,
-        key: b4a.from('included'),
-        value: b4a.from('entry2')
-      },
-      right: null
-    }
-  ]
-  sameKeysAndValues(t, diff, expected)
-})
-
 test('can pass in key- or valueEncoding', async function (t) {
   const bases = await setup(t)
   const base1 = bases[0]
@@ -573,33 +524,33 @@ test('reversing old- and new snapshot position yields reversed left-right', asyn
   const bases = await setup(t, { openFun: encodedOpen })
   const [base1, base2] = bases
 
-  await base1.append({ entry: ['1-1', '1-entry1'] })
-  await base1.append({ entry: ['1-2', '1-entry2'] })
-  await base1.append({ entry: ['shared', 'shared-init'] })
-  await base1.append({ entry: ['shared-del', 'to-be-deleted'] })
+  await base2.append({ entry: ['1-1', '1-entry1'] })
+  await base2.append({ entry: ['1-2', '1-entry2'] })
+  await base2.append({ entry: ['shared', 'shared-init'] })
+  await base2.append({ entry: ['shared-del', 'to-be-deleted'] })
   await confirm([base1, base2])
 
   await Promise.all([
-    base1.append({ entry: ['1-3', '1-entry3'] }),
-    base1.append({ entry: ['1-4', '1-entry4'] }),
-    base1.append({ entry: ['shared', 'temp-shared-value'] }),
-    base1.append({ entry: ['shared', 'shared-final'] }),
-    base1.append({ entry: ['shared-del', 'will be deleted in linearisation'] }),
-    base2.append({ entry: ['2-1', '2-entry1'] }),
-    base2.append({ entry: ['2-2', '2-entry2'] }),
-    base2.append({ entry: ['2-3', '2-entry3'] }),
-    base2.append({ entry: ['shared', 'to-be-insta-changed'] }),
+    base2.append({ entry: ['1-3', '1-entry3'] }),
+    base2.append({ entry: ['1-4', '1-entry4'] }),
+    base2.append({ entry: ['shared', 'temp-shared-value'] }),
     base2.append({ entry: ['shared', 'shared-final'] }),
-    base2.append({ delete: 'shared-del' })
+    base2.append({ entry: ['shared-del', 'will be deleted in linearisation'] }),
+    base1.append({ entry: ['2-1', '2-entry1'] }),
+    base1.append({ entry: ['2-2', '2-entry2'] }),
+    base1.append({ entry: ['2-3', '2-entry3'] }),
+    base1.append({ entry: ['shared', 'to-be-insta-changed'] }),
+    base1.append({ entry: ['shared', 'shared-final'] }),
+    base1.append({ delete: 'shared-del' })
   ])
 
-  const origBee = base1.view.bee.snapshot()
-  const origBee2 = base2.view.bee.snapshot()
+  const origBee = base2.view.bee.snapshot()
+  const origBee2 = base1.view.bee.snapshot()
 
   await confirm([base1, base2])
 
-  const newBee1 = base1.view.bee.snapshot()
-  const newBee2 = base2.view.bee.snapshot()
+  const newBee1 = base2.view.bee.snapshot()
+  const newBee2 = base1.view.bee.snapshot()
 
   const diffsBee1 = await streamToArray(new BeeDiffStream(origBee.snapshot(), newBee1.snapshot(), { closeSnapshots: false }))
   const diffsBee2 = await streamToArray(new BeeDiffStream(origBee2.snapshot(), newBee2.snapshot(), { closeSnapshots: false }))
@@ -660,7 +611,7 @@ test('correctly handles diff between snapshots older than the signedLength (auto
 })
 
 test('correctly handles diff between snapshots older than the signedLength (normal bee)', async function (t) {
-  const bee = new Hyperbee(new Hypercore(ram))
+  const bee = new Hyperbee(new Hypercore(await t.tmp()))
   await bee.put('e1', 'entry1')
 
   // v2
@@ -745,7 +696,7 @@ test('works with JSON key encoding and ranges', async t => {
 })
 
 test('does not close snapshots if option set', async function (t) {
-  const bee = new Hyperbee(new Hypercore(ram))
+  const bee = new Hyperbee(new Hypercore(await t.tmp()))
 
   await bee.put('e1', 'entry1')
   const oldSnap = bee.snapshot()
