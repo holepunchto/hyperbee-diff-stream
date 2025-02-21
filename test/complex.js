@@ -24,7 +24,7 @@ test('complex scenario with many diff cases', async t => {
   // Corresponds to the state just before going offline
   const baselineBee = base2.view.bee.snapshot()
 
-  t.is(base2.view.bee.core.indexedLength, 13) // Sanity check
+  t.is(base2.view.bee.core.signedLength, 13) // Sanity check
 
   // Continue working offline, thereby creating a local fork
   await Promise.all([

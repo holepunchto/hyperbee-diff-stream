@@ -20,13 +20,14 @@
   "author": "Holepunch",
   "license": "Apache-2.0",
   "devDependencies": {
-    "autobase": "^6.0.0",
-    "autobase-test-helpers": "^2.0.4",
+    "autobase": "^7.0.0",
+    "autobase-test-helpers": "^3.0.0",
     "brittle": "^3.1.1",
-    "corestore": "^6.5.0",
+    "corestore": "^7.0.0",
     "hyperbee": "^2.5.0",
     "random-access-memory": "^6.1.0",
-    "standard": "^17.0.0"
+    "standard": "^17.0.0",
+    "test-tmp": "^1.4.0"
   },
   "dependencies": {
     "b4a": "^1.6.1",
