@@ -9,8 +9,10 @@ Even if several peers (including you in your local fork) made a lot of changes t
 ## Install
 `npm i hyperbee-diff-stream`
 
-## Compatibility
-Uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0
+## Versioning and Compatibility
+V1 uses features introduced in Hyperbee ^2.5.0, Hypercore ^10.8.1 and autobase^6.0.0
+
+V2 works with Hypercore V11, Autobase V7 and Corestore V7.
 
 ## Usage
 See [example.js](./example.js)
