@@ -23,6 +23,7 @@ test('complex scenario with many diff cases', async t => {
 
   // Corresponds to the state just before going offline
   const baselineBee = base2.view.bee.snapshot()
+  await baselineBee.ready()
 
   t.is(base2.view.bee.core.signedLength, 13) // Sanity check
 
@@ -53,8 +54,10 @@ test('complex scenario with many diff cases', async t => {
   // State just before reconnecting with base1
   const refBee = base2.view.bee.snapshot()
 
+  const refBeeSnap = refBee.snapshot()
+  await refBeeSnap.ready()
   const [refNewState, refOldState] = diffsToValues(
-    await streamToArray(new BeeDiffStream(baselineBee, refBee.snapshot()))
+    await streamToArray(new BeeDiffStream(baselineBee, refBeeSnap))
   )
   t.alike(refNewState, [
     '2-1 added by 2',
@@ -106,6 +109,7 @@ test('complex scenario with many diff cases', async t => {
   // The peers sync and the autobases are linearised
   await confirm([base1, base2])
   const newBee = base2.view.bee.snapshot()
+  await newBee.ready()
   const [newState, refState] = diffsToValues(
     await streamToArray(new BeeDiffStream(refBee, newBee))
   )
