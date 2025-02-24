@@ -89,6 +89,10 @@ class BeeDiffStream extends Union {
       throw new Error('Incompatible Hypercore version--must have signedLength property')
     }
 
+    if (!leftSnapshot.opened || !rightSnapshot.opened) {
+      throw new Error('Snapshot must be opened')
+    }
+
     // We know that everything indexed in both snapshots is shared
     const sharedIndexedL = Math.min(
       leftSnapshot.core.signedLength, rightSnapshot.core.signedLength

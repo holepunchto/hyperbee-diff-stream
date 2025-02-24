@@ -2,6 +2,8 @@ const test = require('brittle')
 const Hyperbee = require('hyperbee')
 const b4a = require('b4a')
 const Hypercore = require('hypercore')
+const tmpDir = require('test-tmp')
+const Corestore = require('corestore')
 
 const BeeDiffStream = require('../index')
 const { streamToArray, setup, encodedOpen, jsonKeyedOpen, confirm, replicateAndSync } = require('./helpers')
@@ -850,6 +852,34 @@ test('supports diffing values skipped by hyperbee encoding', async t => {
     }
   ])
   t.alike(diffs.map(({ right }) => right?.key), [undefined, undefined]) // deletions
+})
+
+test('throws if a snapshot is not opened', async t => {
+  const store = new Corestore(await tmpDir())
+  const core = store.get({ name: 'bee' })
+  const bee = new Hyperbee(core)
+  t.exception(
+    () => new BeeDiffStream(bee, bee),
+    /Snapshot must be opened/,
+    'none open'
+  )
+
+  await bee.ready()
+  const snap = bee.snapshot()
+
+  t.exception(
+    () => new BeeDiffStream(bee, snap),
+    /Snapshot must be opened/,
+    'right not open'
+  )
+  t.exception(
+    () => new BeeDiffStream(snap, bee),
+    /Snapshot must be opened/,
+    'left not open'
+  )
+
+  await snap.ready()
+  t.execution(() => new BeeDiffStream(snap, bee), 'sanity check that happy path does not throw')
 })
 
 function sameKeysAndValues (t, actual, expected) {
