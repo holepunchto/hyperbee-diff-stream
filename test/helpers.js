@@ -40,8 +40,7 @@ async function createStores (n, t) {
   const stores = []
   for (let i = 0; i < n; i++) {
     const storage = await tmpDir()
-    const primaryKey = Buffer.alloc(32, i)
-    stores.push(new Corestore(storage, { primaryKey }))
+    stores.push(new Corestore(storage))
   }
 
   t.teardown(() => Promise.all(stores.map(s => s.close())), { order: 2 })
